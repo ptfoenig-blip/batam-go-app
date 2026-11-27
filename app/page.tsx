@@ -100,23 +100,11 @@ export default function BatamGoApp() {
     setIsUploading(true);
     let imageUrl = "/kost.jpg";
     try {
-      if (photoFile) {
+            if (photoFile) {
         const base64Img = await compressImage(photoFile);
-        if (base64Img) {
-          const res = await fetch("/api/upload", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image: base64Img }),
-          });
-          const result = await res.json();
-          if (!res.ok || !result.url) {
-            alert("Gagal upload foto: " + (result.error || "Error"));
-            setIsUploading(false);
-            return;
-          }
-          imageUrl = result.url;
-        }
+        if (base64Img) imageUrl = base64Img;
       }
+
       const priceUnit = newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined;
       const badge = newCategory === "otomotif" ? "FTZ BATAM" : "BARU";
       const sellerWa = waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999";
