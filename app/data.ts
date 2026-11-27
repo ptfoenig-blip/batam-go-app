@@ -82,7 +82,7 @@ export const INITIAL_ADS: AdItem[] = [
     isVerified: true,
     whatsapp: "6281270004444",
     description: "Layar jernih, baterai awet, sidik jari dan kamera normal semua, kelengkapan unit + charger.",
-    image: "/hp.jfif",
+    image: "/handphone.jfif",
     views: 285,
     waClicks: 19,
   },
