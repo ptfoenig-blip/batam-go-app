@@ -72,27 +72,28 @@ export default function BatamGoApp() {
       .sort((a, b) => (a.isPriority === b.isPriority ? a.distanceKm - b.distanceKm : a.isPriority ? -1 : 1));
   }, [ads, selectedCategory, selectedDistrict, maxRadius, minPrice, maxPrice, searchQuery]);
 
-       const compressImage = (file: File): Promise<Blob> =>
+         const compressImage = (file: File): Promise<string> =>
     new Promise((resolve) => {
-      const timer = setTimeout(() => resolve(file), 8000);
-      const img = new Image();
-      img.onload = () => {
-        clearTimeout(timer);
-        const canvas = document.createElement("canvas");
-        const maxW = 720;
-        const scale = Math.min(1, maxW / img.width);
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => resolve(blob || file), "image/jpeg", 0.65);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxW = 640;
+          const scale = Math.min(1, maxW / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.65));
+        };
+        img.onerror = () => resolve(String(ev.target?.result || ""));
+        img.src = String(ev.target?.result || "");
       };
-      img.onerror = () => {
-        clearTimeout(timer);
-        resolve(file);
-      };
-      img.src = URL.createObjectURL(file);
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
     });
+
   const handlePublishAd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newPrice || !newDesc || isUploading) return;
@@ -100,41 +101,42 @@ export default function BatamGoApp() {
     let imageUrl = "/kost.jpg";
     try {
       if (photoFile) {
-        const compressed = await compressImage(photoFile);
-        const fileName = `${Date.now()}.jpg`;
-        const sbUrl = "https://supabase.co";
-        const sbKey = "sb_publishable_llzVd0-Do_mq7ahXiiSABA_QSxdSvEu";
-        const res = await fetch(`${sbUrl}/storage/v1/object/ad-images/${fileName}`, {
-          method: "POST",
-          headers: {
-            apikey: sbKey,
-           "Content-Type": "image/jpeg",
-          },
-          body: compressed,
-        });
-        if (!res.ok) {
-          const errText = await res.text();
-          alert("Gagal upload foto: " + errText);
-          setIsUploading(false);
-          return;
+        const base64Img = await compressImage(photoFile);
+        if (base64Img) {
+          const res = await fetch("/api/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: base64Img }),
+          });
+          const result = await res.json();
+          if (!res.ok || !result.url) {
+            alert("Gagal upload foto: " + (result.error || "Error"));
+            setIsUploading(false);
+            return;
+          }
+          imageUrl = result.url;
         }
-        imageUrl = `${sbUrl}/storage/v1/object/public/ad-images/${fileName}`;
       }
       const priceUnit = newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined;
       const badge = newCategory === "otomotif" ? "FTZ BATAM" : "BARU";
       const sellerWa = waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999";
-      const { data: inserted, error: dbErr } = await supabase.from("ads").insert([{
-        title: newTitle, price: Number(newPrice), price_unit: priceUnit ?? null, category: newCategory,
-        district: newDistrict, distance_km: 0.5, badge, seller_name: "Penjual Batam", is_verified: true,
-        whatsapp: sellerWa, description: newDesc, image: imageUrl,
-      }]).select().single();
+      const dbRes = await fetch("/api/ads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTitle, price: Number(newPrice), price_unit: priceUnit ?? null, category: newCategory,
+          district: newDistrict, distance_km: 0.5, badge, seller_name: "Penjual Batam", is_verified: true,
+          whatsapp: sellerWa, description: newDesc, image: imageUrl,
+        }),
+      });
+      const inserted = await dbRes.json();
       setIsUploading(false);
-      if (dbErr) {
-        alert("Gagal menyimpan iklan: " + dbErr.message);
+      if (!dbRes.ok) {
+        alert("Gagal menyimpan iklan: " + (inserted.error || "Error"));
         return;
       }
       const created: AdItem = {
-        id: inserted ? String(inserted.id) : Date.now().toString(), title: newTitle, price: Number(newPrice),
+        id: inserted?.id ? String(inserted.id) : Date.now().toString(), title: newTitle, price: Number(newPrice),
         priceUnit, category: newCategory, district: newDistrict, distanceKm: 0.5, badge,
         sellerName: "Penjual Batam", isVerified: true, whatsapp: sellerWa, description: newDesc,
         image: imageUrl, views: 1, waClicks: 0,
@@ -144,10 +146,9 @@ export default function BatamGoApp() {
       setActiveTab("home");
     } catch (err) {
       setIsUploading(false);
-      alert("Koneksi terputus: " + String(err));
+      alert("Error: " + String(err));
     }
   };
-
   const openWhatsApp = (ad: AdItem, customOffer?: string) => {
     const text = customOffer
       ? `Halo, saya lihat iklan *${ad.title}* di BATAM GO. Apakah boleh nego di harga *Rp ${Number(customOffer).toLocaleString("id-ID")}*?`
