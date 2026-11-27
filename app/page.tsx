@@ -1,6 +1,7 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Category, AdItem, INITIAL_ADS, BATAM_DISTRICTS } from "./data";
+import { supabase } from "./supabase";
 
 export default function BatamGoApp() {
   const [activeTab, setActiveTab] = useState<"home" | "nearby" | "sell" | "ads" | "account">("home");
@@ -24,6 +25,36 @@ export default function BatamGoApp() {
   const [newPrice, setNewPrice] = useState("");
   const [newDistrict, setNewDistrict] = useState("Batam Center");
   const [newDesc, setNewDesc] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    const fetchAds = async () => {
+      const { data } = await supabase.from("ads").select("*").order("created_at", { ascending: false });
+      if (data && data.length > 0) {
+        const dbAds: AdItem[] = data.map((row: Record<string, unknown>) => ({
+          id: String(row.id),
+          title: String(row.title),
+          price: Number(row.price),
+          priceUnit: row.price_unit ? String(row.price_unit) : undefined,
+          category: row.category as Exclude<Category, "semua">,
+          district: String(row.district),
+          distanceKm: Number(row.distance_km ?? 0.5),
+          badge: row.badge ? String(row.badge) : undefined,
+          isPriority: Boolean(row.is_priority),
+          sellerName: String(row.seller_name),
+          isVerified: Boolean(row.is_verified),
+          whatsapp: String(row.whatsapp),
+          description: String(row.description),
+          image: String(row.image),
+          views: Number(row.views ?? 1),
+          waClicks: Number(row.wa_clicks ?? 0),
+        }));
+        setAds([...dbAds, ...INITIAL_ADS]);
+      }
+    };
+    fetchAds();
+  }, []);
 
   const formatRupiah = (num: number) => "Rp " + num.toLocaleString("id-ID");
 
@@ -41,30 +72,48 @@ export default function BatamGoApp() {
       .sort((a, b) => (a.isPriority === b.isPriority ? a.distanceKm - b.distanceKm : a.isPriority ? -1 : 1));
   }, [ads, selectedCategory, selectedDistrict, maxRadius, minPrice, maxPrice, searchQuery]);
 
-  const handlePublishAd = (e: React.FormEvent) => {
+  const handlePublishAd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle || !newPrice || !newDesc) return;
+    if (!newTitle || !newPrice || !newDesc || isUploading) return;
+    if (photoFile && photoFile.size > 512000) {
+      alert("Ukuran foto maksimal 500 KB! Silakan pilih foto yang lebih kecil.");
+      return;
+    }
+    setIsUploading(true);
+    let imageUrl = "/kost.jpg";
+    if (photoFile) {
+      const ext = photoFile.name.split(".").pop() || "jpg";
+      const fileName = `${Date.now()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from("ad-images").upload(fileName, photoFile);
+      if (uploadErr) {
+        alert("Gagal upload foto: " + uploadErr.message);
+        setIsUploading(false);
+        return;
+      }
+      const { data: pub } = supabase.storage.from("ad-images").getPublicUrl(fileName);
+      imageUrl = pub.publicUrl;
+    }
+    const priceUnit = newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined;
+    const badge = newCategory === "otomotif" ? "FTZ BATAM" : "BARU";
+    const sellerWa = waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999";
+    const { data: inserted, error: dbErr } = await supabase.from("ads").insert([{
+      title: newTitle, price: Number(newPrice), price_unit: priceUnit ?? null, category: newCategory,
+      district: newDistrict, distance_km: 0.5, badge, seller_name: "Penjual Batam", is_verified: true,
+      whatsapp: sellerWa, description: newDesc, image: imageUrl,
+    }]).select().single();
+    setIsUploading(false);
+    if (dbErr) {
+      alert("Gagal menyimpan iklan: " + dbErr.message);
+      return;
+    }
     const created: AdItem = {
-      id: Date.now().toString(),
-      title: newTitle,
-      price: Number(newPrice),
-      priceUnit: newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined,
-      category: newCategory,
-      district: newDistrict,
-      distanceKm: 0.5,
-      badge: newCategory === "otomotif" ? "FTZ BATAM" : "BARU",
-      sellerName: "Penjual Batam",
-      isVerified: true,
-      whatsapp: waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999",
-      description: newDesc,
-      image: "https://unsplash.com",
-      views: 1,
-      waClicks: 0,
+      id: inserted ? String(inserted.id) : Date.now().toString(), title: newTitle, price: Number(newPrice),
+      priceUnit, category: newCategory, district: newDistrict, distanceKm: 0.5, badge,
+      sellerName: "Penjual Batam", isVerified: true, whatsapp: sellerWa, description: newDesc,
+      image: imageUrl, views: 1, waClicks: 0,
     };
     setAds([created, ...ads]);
-    setNewTitle("");
-    setNewPrice("");
-    setNewDesc("");
+    setNewTitle(""); setNewPrice(""); setNewDesc(""); setPhotoFile(null);
     setActiveTab("home");
   };
 
@@ -87,9 +136,7 @@ export default function BatamGoApp() {
             </div>
             <div className="p-4">
               {selectedAd.badge && <span className="inline-block bg-orange-100 text-[#FF5722] text-[11px] font-bold px-2 py-0.5 rounded mb-1">{selectedAd.badge}</span>}
-              <div className="text-2xl font-extrabold text-gray-900">
-                {formatRupiah(selectedAd.price)} {selectedAd.priceUnit && <span className="text-sm font-normal text-gray-500">{selectedAd.priceUnit}</span>}
-              </div>
+              <div className="text-2xl font-extrabold text-gray-900">{formatRupiah(selectedAd.price)} {selectedAd.priceUnit && <span className="text-sm font-normal text-gray-500">{selectedAd.priceUnit}</span>}</div>
               <h1 className="text-lg font-semibold text-gray-800 mt-1">{selectedAd.title}</h1>
               <p className="text-xs text-gray-500 mt-2">📍 {selectedAd.district} • <span className="text-[#0194F3] font-semibold">{selectedAd.distanceKm} km dari Anda</span></p>
               <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center gap-3">
@@ -99,10 +146,7 @@ export default function BatamGoApp() {
                   <div className="text-[11px] text-gray-500">Nomor WhatsApp Terverifikasi</div>
                 </div>
               </div>
-              <div className="mt-5">
-                <h2 className="text-sm font-bold text-gray-800 mb-1.5">Deskripsi</h2>
-                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line select-text">{selectedAd.description}</p>
-              </div>
+              <div className="mt-5"><h2 className="text-sm font-bold text-gray-800 mb-1.5">Deskripsi</h2><p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line select-text">{selectedAd.description}</p></div>
             </div>
             <div className="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-200 p-3 flex gap-2.5 z-30">
               {selectedAd.category === "properti" ? (
@@ -115,10 +159,7 @@ export default function BatamGoApp() {
             {showNegoSheet && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
                 <div className="bg-white w-full max-w-md rounded-t-2xl p-5">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-bold text-gray-800">Ajukan Penawaran</h3>
-                    <button onClick={() => setShowNegoSheet(false)} className="text-gray-400 text-sm">Tutup</button>
-                  </div>
+                  <div className="flex justify-between items-center mb-3"><h3 className="font-bold text-gray-800">Ajukan Penawaran</h3><button onClick={() => setShowNegoSheet(false)} className="text-gray-400 text-sm">Tutup</button></div>
                   <p className="text-xs text-gray-500 mb-3">Harga penjual: {formatRupiah(selectedAd.price)}</p>
                   <div className="flex gap-2 mb-3">
                     <button onClick={() => setNegoOffer(Math.floor(selectedAd.price * 0.95).toString())} className="flex-1 py-2 text-xs font-semibold bg-orange-50 text-[#FF5722] rounded-lg border border-orange-200">{formatRupiah(Math.floor(selectedAd.price * 0.95))}</button>
@@ -184,7 +225,6 @@ export default function BatamGoApp() {
                 </div>
               </div>
             )}
-
             {activeTab === "sell" && (
               <div className="p-4">
                 {!isSellerVerified ? (
@@ -210,12 +250,13 @@ export default function BatamGoApp() {
                 ) : (
                   <form onSubmit={handlePublishAd} className="bg-white p-5 rounded-2xl shadow-sm space-y-3">
                     <h2 className="text-lg font-extrabold text-gray-800">Pasang Iklan Baru</h2>
+                    <div><label className="block text-xs font-bold text-gray-700 mb-1">Foto Produk (Maks. 500 KB)</label><input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} className="w-full border border-gray-300 rounded-xl p-2 text-xs bg-white text-gray-900" /></div>
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Kategori</label><select value={newCategory} onChange={(e) => setNewCategory(e.target.value as Exclude<Category, "semua">)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm bg-white text-gray-900"><option value="properti">Properti & Kost</option><option value="otomotif">Otomotif</option><option value="elektronik">Elektronik</option><option value="perkakas">Perkakas Rumah Tangga</option></select></div>
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Judul Iklan</label><input type="text" required value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Contoh: Kost AC Sukajadi Dekat Kepri Mall" className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Harga (Rp)</label><input type="number" required min={1000} value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="Contoh: 1200000" className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Lokasi Kecamatan</label><select value={newDistrict} onChange={(e) => setNewDistrict(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm bg-white text-gray-900">{BATAM_DISTRICTS.filter((d) => d !== "Semua Batam").map((d) => <option key={d} value={d}>{d}</option>)}</select></div>
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Deskripsi Iklan</label><textarea rows={4} required value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Jelaskan kondisi barang, fasilitas kost, status surat FTZ/SHM, dll..." className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
-                    <button type="submit" className="w-full py-3.5 rounded-xl bg-[#FF5722] text-white font-bold text-sm shadow">Tayangkan Iklan Sekarang</button>
+                    <button type="submit" disabled={isUploading} className="w-full py-3.5 rounded-xl bg-[#FF5722] text-white font-bold text-sm shadow">{isUploading ? "Mengunggah Foto & Menyimpan..." : "Tayangkan Iklan Sekarang"}</button>
                   </form>
                 )}
               </div>
