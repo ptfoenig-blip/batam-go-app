@@ -72,11 +72,12 @@ export default function BatamGoApp() {
       .sort((a, b) => (a.isPriority === b.isPriority ? a.distanceKm - b.distanceKm : a.isPriority ? -1 : 1));
   }, [ads, selectedCategory, selectedDistrict, maxRadius, minPrice, maxPrice, searchQuery]);
 
-     const compressImage = (file: File): Promise<Blob> =>
+       const compressImage = (file: File): Promise<Blob> =>
     new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(file), 2000);
       const img = new Image();
-      img.src = URL.createObjectURL(file);
       img.onload = () => {
+        clearTimeout(timer);
         const canvas = document.createElement("canvas");
         const maxW = 800;
         const scale = Math.min(1, maxW / img.width);
@@ -86,8 +87,12 @@ export default function BatamGoApp() {
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
         canvas.toBlob((blob) => resolve(blob || file), "image/jpeg", 0.7);
       };
+      img.onerror = () => {
+        clearTimeout(timer);
+        resolve(file);
+      };
+      img.src = URL.createObjectURL(file);
     });
-
   const handlePublishAd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newPrice || !newDesc || isUploading) return;
