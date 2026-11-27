@@ -79,13 +79,13 @@ export default function BatamGoApp() {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement("canvas");
-          const maxW = 640;
+          const maxW = 400;
           const scale = Math.min(1, maxW / img.width);
           canvas.width = img.width * scale;
           canvas.height = img.height * scale;
           const ctx = canvas.getContext("2d");
           ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/jpeg", 0.65));
+          resolve(canvas.toDataURL("image/jpeg", 0.5));
         };
         img.onerror = () => resolve(String(ev.target?.result || ""));
         img.src = String(ev.target?.result || "");
