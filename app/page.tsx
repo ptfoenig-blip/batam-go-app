@@ -94,48 +94,44 @@ export default function BatamGoApp() {
       reader.readAsDataURL(file);
     });
 
-  const handlePublishAd = async (e: React.FormEvent) => {
+    const handlePublishAd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newPrice || !newDesc || isUploading) return;
     setIsUploading(true);
     let imageUrl = "/kost.jpg";
-    try {
-            if (photoFile) {
-        const base64Img = await compressImage(photoFile);
-        if (base64Img) imageUrl = base64Img;
-      }
-
-      const priceUnit = newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined;
-      const badge = newCategory === "otomotif" ? "FTZ BATAM" : "BARU";
-      const sellerWa = waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999";
-      const dbRes = await fetch("/api/ads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newTitle, price: Number(newPrice), price_unit: priceUnit ?? null, category: newCategory,
-          district: newDistrict, distance_km: 0.5, badge, seller_name: "Penjual Batam", is_verified: true,
-          whatsapp: sellerWa, description: newDesc, image: imageUrl,
-        }),
-      });
-      const inserted = await dbRes.json();
-      setIsUploading(false);
-      if (!dbRes.ok) {
-        alert("Gagal menyimpan iklan: " + (inserted.error || "Error"));
-        return;
-      }
-      const created: AdItem = {
-        id: inserted?.id ? String(inserted.id) : Date.now().toString(), title: newTitle, price: Number(newPrice),
-        priceUnit, category: newCategory, district: newDistrict, distanceKm: 0.5, badge,
-        sellerName: "Penjual Batam", isVerified: true, whatsapp: sellerWa, description: newDesc,
-        image: imageUrl, views: 1, waClicks: 0,
-      };
-      setAds([created, ...ads]);
-      setNewTitle(""); setNewPrice(""); setNewDesc(""); setPhotoFile(null);
-      setActiveTab("home");
-    } catch (err) {
-      setIsUploading(false);
-      alert("Error: " + String(err));
+    if (photoFile) {
+      const base64Img = await compressImage(photoFile);
+      if (base64Img) imageUrl = base64Img;
     }
+    const priceUnit = newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined;
+    const badge = newCategory === "otomotif" ? "FTZ BATAM" : "BARU";
+    const sellerWa = waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999";
+    const created: AdItem = {
+      id: Date.now().toString(),
+      title: newTitle,
+      price: Number(newPrice),
+      priceUnit,
+      category: newCategory,
+      district: newDistrict,
+      distanceKm: 0.5,
+      badge,
+      sellerName: "Penjual Batam",
+      isVerified: true,
+      whatsapp: sellerWa,
+      description: newDesc,
+      image: imageUrl,
+      views: 1,
+      waClicks: 0,
+    };
+    const updatedAds = [created, ...ads];
+    setAds(updatedAds);
+    localStorage.setItem("batamgo_ads", JSON.stringify(updatedAds));
+    setIsUploading(false);
+    setNewTitle("");
+    setNewPrice("");
+    setNewDesc("");
+    setPhotoFile(null);
+    setActiveTab("home");
   };
   const openWhatsApp = (ad: AdItem, customOffer?: string) => {
     const text = customOffer
