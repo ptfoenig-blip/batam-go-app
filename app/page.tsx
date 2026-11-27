@@ -68,7 +68,7 @@ const INITIAL_ADS: AdItem[] = [
     sellerName: "Andi Pratama",
     isVerified: false,
     whatsapp: "6281270003333",
-    description: "Jual cepat edisi pindahan kerja. Dingin normal, karet pintu rapat. Bisa bantu carikan pick-up angkut area Batam.",
+    description: "Jual cepat edisi pindahan kerja. Dingin normal, karet pintu rapat, tidak ada karat. Bisa bantu carikan pick-up angkut area Batam.",
     image: "https://unsplash.com",
     views: 215,
     waClicks: 12,
@@ -118,9 +118,6 @@ const BATAM_DISTRICTS = [
   "Bengkong",
   "Nongsa",
 ];
-
-const RADIUS_LIST =;
-const NEGO_LIST = [0.95, 0.9, 0.85];
 
 export default function BatamGoApp() {
   const [activeTab, setActiveTab] = useState<"home" | "nearby" | "sell" | "ads" | "account">("home");
