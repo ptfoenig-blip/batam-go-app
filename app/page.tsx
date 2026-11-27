@@ -36,10 +36,8 @@ const INITIAL_ADS: AdItem[] = [
     sellerName: "Ibu Sari",
     isVerified: true,
     whatsapp: "6281270001111",
-    description:
-      "Kamar mandi dalam, AC, WiFi, parkir motor aman. Dekat Kepri Mall, Batamindo, Politeknik. Minat survei langsung hubungi WA.",
-    image:
-      "https://unsplash.com",
+    description: "Kamar mandi dalam, AC, WiFi, parkir motor aman. Dekat Kepri Mall & Batamindo. Minat survei langsung hubungi WA.",
+    image: "https://unsplash.com",
     views: 890,
     waClicks: 45,
   },
@@ -54,10 +52,8 @@ const INITIAL_ADS: AdItem[] = [
     sellerName: "Budi Motor Batam",
     isVerified: true,
     whatsapp: "6281270002222",
-    description:
-      "Surat lengkap FTZ Batam, pajak hidup panjang, mesin halus terawat, ban tebal. Siap pakai harian tanpa PR.",
-    image:
-      "https://unsplash.com",
+    description: "Surat lengkap FTZ Batam, pajak hidup panjang, mesin halus terawat, ban tebal. Siap pakai harian tanpa PR.",
+    image: "https://unsplash.com",
     views: 342,
     waClicks: 18,
   },
@@ -72,10 +68,8 @@ const INITIAL_ADS: AdItem[] = [
     sellerName: "Andi Pratama",
     isVerified: false,
     whatsapp: "6281270003333",
-    description:
-      "Jual cepat edisi pindahan kerja. Dingin normal, karet pintu rapat, tidak ada karat. Bisa bantu carikan pick-up angkut area Batam.",
-    image:
-      "https://unsplash.com",
+    description: "Jual cepat edisi pindahan kerja. Dingin normal, karet pintu rapat. Bisa bantu carikan pick-up angkut area Batam.",
+    image: "https://unsplash.com",
     views: 215,
     waClicks: 12,
   },
@@ -90,10 +84,8 @@ const INITIAL_ADS: AdItem[] = [
     sellerName: "Rian Property Batam",
     isVerified: true,
     whatsapp: "6281270004444",
-    description:
-      "Tipe 45/90, 2 kamar tidur, 1 kamar mandi, carport keramik, bebas banjir. Dekat pasar Tiban Center & akses mudah ke Nagoya.",
-    image:
-      "https://unsplash.com",
+    description: "Tipe 45/90, 2 kamar tidur, 1 kamar mandi, carport keramik, bebas banjir. Dekat pasar Tiban Center.",
+    image: "https://unsplash.com",
     views: 510,
     waClicks: 29,
   },
@@ -108,10 +100,8 @@ const INITIAL_ADS: AdItem[] = [
     sellerName: "Pak Hendra",
     isVerified: false,
     whatsapp: "6281270005555",
-    description:
-      "Jarang dipakai, fungsi normal 100%, lengkap dengan koper dan mata bor. Cocok untuk tukang atau keperluan rumah tangga.",
-    image:
-      "https://unsplash.com",
+    description: "Jarang dipakai, fungsi normal 100%, lengkap dengan koper dan mata bor. Cocok untuk tukang atau rumah tangga.",
+    image: "https://unsplash.com",
     views: 128,
     waClicks: 7,
   },
@@ -129,16 +119,13 @@ const BATAM_DISTRICTS = [
   "Nongsa",
 ];
 
-const RADIUS_OPTIONS = Array.of(1, 3, 5, 10, 20);
-const NEGO_RATIOS = Array.of(0.95, 0.9, 0.85);
+const RADIUS_LIST =;
+const NEGO_LIST = [0.95, 0.9, 0.85];
 
 export default function BatamGoApp() {
-  const [activeTab, setActiveTab] = useState<
-    "home" | "nearby" | "sell" | "ads" | "account"
-  >("home");
+  const [activeTab, setActiveTab] = useState<"home" | "nearby" | "sell" | "ads" | "account">("home");
   const [ads, setAds] = useState<AdItem[]>(INITIAL_ADS);
   const [selectedAd, setSelectedAd] = useState<AdItem | null>(null);
-
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category>("semua");
   const [selectedDistrict, setSelectedDistrict] = useState("Semua Batam");
@@ -146,18 +133,14 @@ export default function BatamGoApp() {
   const [minPrice, setMinPrice] = useState<string>("");
   const [maxPrice, setMaxPrice] = useState<string>("");
   const [showFilterSheet, setShowFilterSheet] = useState(false);
-
   const [showNegoSheet, setShowNegoSheet] = useState(false);
   const [negoOffer, setNegoOffer] = useState<string>("");
-
   const [isSellerVerified, setIsSellerVerified] = useState(false);
   const [waNumber, setWaNumber] = useState("");
   const [otpInput, setOtpInput] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-
   const [newTitle, setNewTitle] = useState("");
-  const [newCategory, setNewCategory] =
-    useState<Exclude<Category, "semua">>("properti");
+  const [newCategory, setNewCategory] = useState<Exclude<Category, "semua">>("properti");
   const [newPrice, setNewPrice] = useState("");
   const [newDistrict, setNewDistrict] = useState("Batam Center");
   const [newDesc, setNewDesc] = useState("");
@@ -167,21 +150,12 @@ export default function BatamGoApp() {
   const filteredAds = useMemo(() => {
     return ads
       .filter((ad) => {
-        if (selectedCategory !== "semua" && ad.category !== selectedCategory)
-          return false;
-        if (
-          selectedDistrict !== "Semua Batam" &&
-          ad.district !== selectedDistrict
-        )
-          return false;
+        if (selectedCategory !== "semua" && ad.category !== selectedCategory) return false;
+        if (selectedDistrict !== "Semua Batam" && ad.district !== selectedDistrict) return false;
         if (ad.distanceKm > maxRadius) return false;
         if (minPrice && ad.price < Number(minPrice)) return false;
         if (maxPrice && ad.price > Number(maxPrice)) return false;
-        if (
-          searchQuery &&
-          !ad.title.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-          return false;
+        if (searchQuery && !ad.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
         return true;
       })
       .sort((a, b) => {
@@ -189,15 +163,7 @@ export default function BatamGoApp() {
         if (!a.isPriority && b.isPriority) return 1;
         return a.distanceKm - b.distanceKm;
       });
-  }, [
-    ads,
-    selectedCategory,
-    selectedDistrict,
-    maxRadius,
-    minPrice,
-    maxPrice,
-    searchQuery,
-  ]);
+  }, [ads, selectedCategory, selectedDistrict, maxRadius, minPrice, maxPrice, searchQuery]);
 
   const handlePublishAd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,22 +172,16 @@ export default function BatamGoApp() {
       id: Date.now().toString(),
       title: newTitle,
       price: Number(newPrice),
-      priceUnit:
-        newCategory === "properti" && newTitle.toLowerCase().includes("kost")
-          ? "/ bln"
-          : undefined,
+      priceUnit: newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined,
       category: newCategory,
       district: newDistrict,
       distanceKm: 0.5,
       badge: newCategory === "otomotif" ? "FTZ BATAM" : "BARU",
       sellerName: "Penjual Batam",
       isVerified: true,
-      whatsapp: waNumber
-        ? `62${waNumber.replace(/^0/, "")}`
-        : "6281270009999",
+      whatsapp: waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999",
       description: newDesc,
-      image:
-        "https://unsplash.com",
+      image: "https://unsplash.com",
       views: 1,
       waClicks: 0,
     };
@@ -236,10 +196,7 @@ export default function BatamGoApp() {
     const text = customOffer
       ? `Halo, saya lihat iklan *${ad.title}* di BATAM GO. Apakah boleh nego di harga *Rp ${Number(customOffer).toLocaleString("id-ID")}*?`
       : `Halo, saya tertarik dengan iklan *${ad.title}* (${formatRupiah(ad.price)}) di BATAM GO. Apakah masih tersedia?`;
-    window.open(
-      `https://wa.me{ad.whatsapp}?text=${encodeURIComponent(text)}`,
-      "_blank"
-    );
+    window.open(`https://wa.me{ad.whatsapp}?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   return (
@@ -248,49 +205,39 @@ export default function BatamGoApp() {
         {selectedAd ? (
           <div className="bg-white min-h-screen pb-24">
             <div className="relative">
-              <img
-                src={selectedAd.image}
-                alt={selectedAd.title}
-                className="w-full h-72 object-cover"
-              />
-              <button
-                onClick={() => setSelectedAd(null)}
-                className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full text-sm font-bold shadow text-gray-800"
-              >
+              <img src={selectedAd.image} alt={selectedAd.title} className="w-full h-72 object-cover" />
+              <button onClick={() => setSelectedAd(null)} className="absolute top-4 left-4 bg-white/90 px-3 py-1.5 rounded-full text-sm font-bold shadow text-gray-800">
                 ← Kembali
               </button>
-              <span className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full">
-                1/5 Foto
-              </span>
+              <span className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full">1/5 Foto</span>
             </div>
-
             <div className="p-4">
               {selectedAd.badge && (
-                <span className="inline-block bg-orange-100 text-[#FF5722] text-[11px] font-bold px-2 py-0.5 rounded mb-1">
-                  {selectedAd.badge}
-                </span>
+                <span className="inline-block bg-orange-100 text-[#FF5722] text-[11px] font-bold px-2 py-0.5 rounded mb-1">{selectedAd.badge}</span>
               )}
               <div className="text-2xl font-extrabold text-gray-900">
                 {formatRupiah(selectedAd.price)}{" "}
-                {selectedAd.priceUnit && (
-                  <span className="text-sm font-normal text-gray-500">
-                    {selectedAd.priceUnit}
-                  </span>
-                )}
+                {selectedAd.priceUnit && <span className="text-sm font-normal text-gray-500">{selectedAd.priceUnit}</span>}
               </div>
-              <h1 className="text-lg font-semibold text-gray-800 mt-1 leading-snug">
-                {selectedAd.title}
-              </h1>
+              <h1 className="text-lg font-semibold text-gray-800 mt-1">{selectedAd.title}</h1>
               <p className="text-xs text-gray-500 mt-2">
-                📍 {selectedAd.district} •{" "}
-                <span className="text-[#0194F3] font-semibold">
-                  {selectedAd.distanceKm} km dari Anda
-                </span>
+                📍 {selectedAd.district} • <span className="text-[#0194F3] font-semibold">{selectedAd.distanceKm} km dari Anda</span>
               </p>
-
-              <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#0194F3] text-white flex items-center justify-center font-bold">
-                    {selectedAd.sellerName.charAt(0)}
+              <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#0194F3] text-white flex items-center justify-center font-bold">
+                  {selectedAd.sellerName.charAt(0)}
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-gray-800">
+                    {selectedAd.sellerName} {selectedAd.isVerified && <span className="text-xs text-[#0194F3]">✔️</span>}
                   </div>
-                  <div>
+                  <div className="text-[11px] text-gray-500">Nomor WhatsApp Terverifikasi</div>
+                </div>
+              </div>
+              <div className="mt-5">
+                <h2 className="text-sm font-bold text-gray-800 mb-1.5">Deskripsi</h2>
+                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line select-text">{selectedAd.description}</p>
+              </div>
+            </div>
+            <div className="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-200 p-3 flex gap-2.5 z-30">
+              {selectedAd.category === "properti" ? (
