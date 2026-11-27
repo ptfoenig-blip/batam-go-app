@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
 import { Category, AdItem, INITIAL_ADS, BATAM_DISTRICTS } from "./data";
-import { supabase } from "./supabase";
+import { supabase } from "../supabase";
 
 export default function BatamGoApp() {
   const [activeTab, setActiveTab] = useState<"home" | "nearby" | "sell" | "ads" | "account">("home");
