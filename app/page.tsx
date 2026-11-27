@@ -103,8 +103,7 @@ export default function BatamGoApp() {
           method: "POST",
           headers: {
             apikey: sbKey,
-            Authorization: `Bearer ${sbKey}`,
-            "Content-Type": "image/jpeg",
+           "Content-Type": "image/jpeg",
           },
           body: compressed,
         });
