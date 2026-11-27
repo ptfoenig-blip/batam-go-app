@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
 import { Category, AdItem, INITIAL_ADS, BATAM_DISTRICTS } from "./data";
-import { supabase } from "../supabase";
 
 export default function BatamGoApp() {
   const [activeTab, setActiveTab] = useState<"home" | "nearby" | "sell" | "ads" | "account">("home");
@@ -25,17 +24,15 @@ export default function BatamGoApp() {
   const [newPrice, setNewPrice] = useState("");
   const [newDistrict, setNewDistrict] = useState("Batam Center");
   const [newDesc, setNewDesc] = useState("");
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
 
-    useEffect(() => {
+  useEffect(() => {
     try {
-      const saved = localStorage.getItem("batamgo_ads");
+      const saved = localStorage.getItem("batamgo_ads_v1");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setAds(parsed);
-        }
+        if (Array.isArray(parsed) && parsed.length > 0) setAds(parsed);
       }
     } catch {}
   }, []);
@@ -56,37 +53,30 @@ export default function BatamGoApp() {
       .sort((a, b) => (a.isPriority === b.isPriority ? a.distanceKm - b.distanceKm : a.isPriority ? -1 : 1));
   }, [ads, selectedCategory, selectedDistrict, maxRadius, minPrice, maxPrice, searchQuery]);
 
-  const compressImage = (file: File): Promise<string> =>
-    new Promise((resolve) => {
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const maxW = 480;
-        const scale = Math.min(1, maxW / img.width);
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const result = canvas.toDataURL("image/jpeg", 0.6);
-        URL.revokeObjectURL(url);
-        resolve(result);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        resolve("");
-      };
-      img.src = url;
-    });
-    const handlePublishAd = async (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files.item(0) : null;
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const maxW = 480;
+      const scale = Math.min(1, maxW / img.width);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.65);
+      setPhotoPreview(dataUrl);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  };
+
+  const handlePublishAd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newPrice || !newDesc || isUploading) return;
     setIsUploading(true);
-    let imageUrl = "/kost.jpg";
-    if (photoFile) {
-      const base64Img = await compressImage(photoFile);
-      if (base64Img) imageUrl = base64Img;
-    }
     const priceUnit = newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined;
     const badge = newCategory === "otomotif" ? "FTZ BATAM" : "BARU";
     const sellerWa = waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999";
@@ -103,25 +93,28 @@ export default function BatamGoApp() {
       isVerified: true,
       whatsapp: sellerWa,
       description: newDesc,
-      image: imageUrl,
+      image: photoPreview || "/kost.jpg",
       views: 1,
       waClicks: 0,
     };
     const updatedAds = [created, ...ads];
     setAds(updatedAds);
-    localStorage.setItem("batamgo_ads", JSON.stringify(updatedAds));
+    try {
+      localStorage.setItem("batamgo_ads_v1", JSON.stringify(updatedAds));
+    } catch {}
     setIsUploading(false);
     setNewTitle("");
     setNewPrice("");
     setNewDesc("");
-    setPhotoFile(null);
+    setPhotoPreview("");
     setActiveTab("home");
   };
+
   const openWhatsApp = (ad: AdItem, customOffer?: string) => {
     const text = customOffer
       ? `Halo, saya lihat iklan *${ad.title}* di BATAM GO. Apakah boleh nego di harga *Rp ${Number(customOffer).toLocaleString("id-ID")}*?`
       : `Halo, saya tertarik dengan iklan *${ad.title}* (${formatRupiah(ad.price)}) di BATAM GO. Apakah masih tersedia?`;
-    window.open(`https://wa.me/${ad.whatsapp}?text=${encodeURIComponent(text)}`, "_blank");
+    window.open(`https://wa.me{ad.whatsapp}?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   return (
@@ -225,6 +218,7 @@ export default function BatamGoApp() {
                 </div>
               </div>
             )}
+
             {activeTab === "sell" && (
               <div className="p-4">
                 {!isSellerVerified ? (
@@ -250,13 +244,17 @@ export default function BatamGoApp() {
                 ) : (
                   <form onSubmit={handlePublishAd} className="bg-white p-5 rounded-2xl shadow-sm space-y-3">
                     <h2 className="text-lg font-extrabold text-gray-800">Pasang Iklan Baru</h2>
-                    <div><label className="block text-xs font-bold text-gray-700 mb-1">Foto Produk</label><input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files ? e.target.files.item(0) : null)} className="w-full border border-gray-300 rounded-xl p-2 text-xs bg-white text-gray-900" /></div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Foto Produk</label>
+                      <input type="file" accept="image/*" onChange={handleFileChange} className="w-full border border-gray-300 rounded-xl p-2 text-xs bg-white text-gray-900" />
+                      {photoPreview && <img src={photoPreview} alt="Preview" className="mt-2 h-28 w-28 object-cover rounded-xl border border-gray-200" />}
+                    </div>
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Kategori</label><select value={newCategory} onChange={(e) => setNewCategory(e.target.value as Exclude<Category, "semua">)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm bg-white text-gray-900"><option value="properti">Properti & Kost</option><option value="otomotif">Otomotif</option><option value="elektronik">Elektronik</option><option value="perkakas">Perkakas Rumah Tangga</option></select></div>
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Judul Iklan</label><input type="text" required value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Contoh: Kost AC Sukajadi Dekat Kepri Mall" className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Harga (Rp)</label><input type="number" required min={1000} value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="Contoh: 1200000" className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Lokasi Kecamatan</label><select value={newDistrict} onChange={(e) => setNewDistrict(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm bg-white text-gray-900">{BATAM_DISTRICTS.filter((d) => d !== "Semua Batam").map((d) => <option key={d} value={d}>{d}</option>)}</select></div>
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Deskripsi Iklan</label><textarea rows={4} required value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Jelaskan kondisi barang, fasilitas kost, status surat FTZ/SHM, dll..." className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
-                    <button type="submit" disabled={isUploading} className="w-full py-3.5 rounded-xl bg-[#FF5722] text-white font-bold text-sm shadow">{isUploading ? "Mengunggah Foto & Menyimpan..." : "Tayangkan Iklan Sekarang"}</button>
+                    <button type="submit" disabled={isUploading} className="w-full py-3.5 rounded-xl bg-[#FF5722] text-white font-bold text-sm shadow">Tayangkan Iklan Sekarang</button>
                   </form>
                 )}
               </div>
