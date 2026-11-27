@@ -28,32 +28,16 @@ export default function BatamGoApp() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  useEffect(() => {
-    const fetchAds = async () => {
-      const { data } = await supabase.from("ads").select("*").order("created_at", { ascending: false });
-      if (data && data.length > 0) {
-        const dbAds: AdItem[] = data.map((row: Record<string, unknown>) => ({
-          id: String(row.id),
-          title: String(row.title),
-          price: Number(row.price),
-          priceUnit: row.price_unit ? String(row.price_unit) : undefined,
-          category: row.category as Exclude<Category, "semua">,
-          district: String(row.district),
-          distanceKm: Number(row.distance_km ?? 0.5),
-          badge: row.badge ? String(row.badge) : undefined,
-          isPriority: Boolean(row.is_priority),
-          sellerName: String(row.seller_name),
-          isVerified: Boolean(row.is_verified),
-          whatsapp: String(row.whatsapp),
-          description: String(row.description),
-          image: String(row.image),
-          views: Number(row.views ?? 1),
-          waClicks: Number(row.wa_clicks ?? 0),
-        }));
-        setAds([...dbAds, ...INITIAL_ADS]);
+    useEffect(() => {
+    try {
+      const saved = localStorage.getItem("batamgo_ads");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAds(parsed);
+        }
       }
-    };
-    fetchAds();
+    } catch {}
   }, []);
 
   const formatRupiah = (num: number) => "Rp " + num.toLocaleString("id-ID");
@@ -72,28 +56,28 @@ export default function BatamGoApp() {
       .sort((a, b) => (a.isPriority === b.isPriority ? a.distanceKm - b.distanceKm : a.isPriority ? -1 : 1));
   }, [ads, selectedCategory, selectedDistrict, maxRadius, minPrice, maxPrice, searchQuery]);
 
-         const compressImage = (file: File): Promise<string> =>
+  const compressImage = (file: File): Promise<string> =>
     new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const maxW = 400;
-          const scale = Math.min(1, maxW / img.width);
-          canvas.width = img.width * scale;
-          canvas.height = img.height * scale;
-          const ctx = canvas.getContext("2d");
-          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/jpeg", 0.5));
-        };
-        img.onerror = () => resolve(String(ev.target?.result || ""));
-        img.src = String(ev.target?.result || "");
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxW = 480;
+        const scale = Math.min(1, maxW / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const result = canvas.toDataURL("image/jpeg", 0.6);
+        URL.revokeObjectURL(url);
+        resolve(result);
       };
-      reader.onerror = () => resolve("");
-      reader.readAsDataURL(file);
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve("");
+      };
+      img.src = url;
     });
-
     const handlePublishAd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newPrice || !newDesc || isUploading) return;
