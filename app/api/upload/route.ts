@@ -1,32 +1,36 @@
 import { NextResponse } from "next/server";
 
+const sbUrl = "https://supabase.co";
+const sbKey = "sb_publishable_llzVd0-Do_mq7ahXiiSABA_QSxdSvEu";
+
+export async function GET() {
+  try {
+    const res = await fetch(`${sbUrl}/rest/v1/ads?select=*&order=created_at.desc`, {
+      headers: { apikey: sbKey },
+      cache: "no-store",
+    });
+    const data = await res.json();
+    return NextResponse.json(Array.isArray(data) ? data : []);
+  } catch {
+    return NextResponse.json([]);
+  }
+}
+
 export async function POST(req: Request) {
   try {
-    const formData = await req.formData();
-    const file = formData.get("file") as File;
-    if (!file) return NextResponse.json({ error: "File kosong" }, { status: 400 });
-
-    const sbUrl = "https://supabase.co";
-    const sbKey = "sb_publishable_llzVd0-Do_mq7ahXiiSABA_QSxdSvEu";
-    const fileName = `${Date.now()}.jpg`;
-    const buffer = await file.arrayBuffer();
-
-    const uploadRes = await fetch(`${sbUrl}/storage/v1/object/ad-images/${fileName}`, {
+    const body = await req.json();
+    const res = await fetch(`${sbUrl}/rest/v1/ads`, {
       method: "POST",
       headers: {
         apikey: sbKey,
-        "Content-Type": "image/jpeg",
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
       },
-      body: buffer,
+      body: JSON.stringify(body),
     });
-
-    if (!uploadRes.ok) {
-      const errText = await uploadRes.text();
-      return NextResponse.json({ error: errText }, { status: 500 });
-    }
-
-    const publicUrl = `${sbUrl}/storage/v1/object/public/ad-images/${fileName}`;
-    return NextResponse.json({ url: publicUrl });
+    const data = await res.json();
+    if (!res.ok) return NextResponse.json({ error: JSON.stringify(data) }, { status: 500 });
+    return NextResponse.json(Array.isArray(data) ? data[0] : data);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
