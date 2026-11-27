@@ -72,19 +72,33 @@ export default function BatamGoApp() {
       .sort((a, b) => (a.isPriority === b.isPriority ? a.distanceKm - b.distanceKm : a.isPriority ? -1 : 1));
   }, [ads, selectedCategory, selectedDistrict, maxRadius, minPrice, maxPrice, searchQuery]);
 
+    const compressImage = (file: File): Promise<Blob> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxW = 800;
+        const scale = Math.min(1, maxW / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => resolve(blob || file), "image/jpeg", 0.75);
+      };
+    });
+
   const handlePublishAd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newPrice || !newDesc || isUploading) return;
-    if (photoFile && photoFile.size > 512000) {
-      alert("Ukuran foto maksimal 500 KB! Silakan pilih foto yang lebih kecil.");
-      return;
-    }
     setIsUploading(true);
     let imageUrl = "/kost.jpg";
     if (photoFile) {
-      const ext = photoFile.name.split(".").pop() || "jpg";
-      const fileName = `${Date.now()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from("ad-images").upload(fileName, photoFile);
+      const compressed = await compressImage(photoFile);
+      const fileName = `${Date.now()}.jpg`;
+      const { error: uploadErr } = await supabase.storage
+        .from("ad-images")
+        .upload(fileName, compressed, { contentType: "image/jpeg" });
       if (uploadErr) {
         alert("Gagal upload foto: " + uploadErr.message);
         setIsUploading(false);
@@ -114,14 +128,14 @@ export default function BatamGoApp() {
     };
     setAds([created, ...ads]);
     setNewTitle(""); setNewPrice(""); setNewDesc(""); setPhotoFile(null);
-    setActiveTab("home");
+        setActiveTab("home");
   };
 
   const openWhatsApp = (ad: AdItem, customOffer?: string) => {
     const text = customOffer
       ? `Halo, saya lihat iklan *${ad.title}* di BATAM GO. Apakah boleh nego di harga *Rp ${Number(customOffer).toLocaleString("id-ID")}*?`
       : `Halo, saya tertarik dengan iklan *${ad.title}* (${formatRupiah(ad.price)}) di BATAM GO. Apakah masih tersedia?`;
-    window.open(`https://wa.me{ad.whatsapp}?text=${encodeURIComponent(text)}`, "_blank");
+    window.open(`https://wa.me/${ad.whatsapp}?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   return (
