@@ -14,7 +14,7 @@ export interface AdItem {
   isVerified: boolean;
   whatsapp: string;
   description: string;
-  image: string;
+  image: string;   images?: string[];
   views: number;
   waClicks: number;
 }
