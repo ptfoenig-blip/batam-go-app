@@ -260,39 +260,8 @@ export default function BatamGoApp() {
               </div>
             )}
 
-            {activeTab === "sell" && (
-              <div className="p-4">
-                {!isSellerVerified ? (
-                  <div className="bg-white p-5 rounded-2xl shadow-sm">
-                    <h2 className="text-lg font-extrabold text-gray-800 mb-1">Verifikasi Penjual</h2>
-                    <p className="text-xs text-gray-500 mb-4">Untuk mencegah akun palsu di Batam, wajib verifikasi nomor WhatsApp aktif Anda satu kali.</p>
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800 font-semibold mb-4">✔️ Akun Google Terhubung</div>
-            {activeTab === "ads" && (
-              <div className="p-4 space-y-3">
-                <div className="bg-[#0194F3] text-white p-4 rounded-2xl flex justify-between items-center">
-                  <div><h2 className="font-extrabold text-base">Iklan Saya & Promosi</h2><p className="text-xs text-blue-100">Tingkatkan penjualan lebih cepat di Batam</p></div>
-                  <span className="bg-white/20 px-2.5 py-1 rounded-lg text-xs font-bold">Kuota Gratis: 2/2</span>
-                </div>
-                {ads.slice(0, 2).map((ad) => (
-                  <div key={ad.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                    <div className="flex gap-3">
-                      <img src={ad.image} alt={ad.title} className="w-16 h-16 rounded-lg object-cover" />
-                      <div className="flex-1"><h3 className="text-xs font-bold text-gray-800 line-clamp-1">{ad.title}</h3><div className="text-sm font-extrabold text-gray-900">{formatRupiah(ad.price)}</div><div className="text-[11px] text-gray-500 mt-1">👁️ {ad.views} Dilihat • 💬 {ad.waClicks} Klik WA</div></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-gray-100">
-                      <button onClick={() => alert("Membuka QRIS Pembayaran Sundul Iklan (Rp 5.000)...")} className="py-2 rounded-lg border border-[#0194F3] text-[#0194F3] text-xs font-bold">⬆️ Sundul (Rp 5rb)</button>
-                      <button onClick={() => alert("Membuka QRIS Pembayaran Highlight Prioritas (Rp 15.000)...")} className="py-2 rounded-lg bg-[#FF5722] text-white text-xs font-bold">⚡ Highlight (Rp 15rb)</button>
-                    </div>
-                  </div>
-                ))}
-                <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-4 rounded-2xl shadow">
-                  <div className="text-xs text-amber-400 font-bold mb-1">👑 PAKET JURAGAN BATAM</div>
-                  <h3 className="text-sm font-bold">30 Iklan Aktif + Lencana Centang Biru</h3>
-                  <p className="text-xs text-gray-300 mt-1 mb-3">Cocok untuk Agen Properti, Pemilik Kost & Showroom Otomotif.</p>
-                  <button onClick={() => alert("Membuka QRIS Paket Juragan Batam (Rp 99.000/bulan)...")} className="w-full py-2.5 rounded-xl bg-amber-400 text-gray-900 font-extrabold text-xs">Upgrade Sekarang - Rp 99rb / bln</button>
-                </div>
-              </div>
-            )}
+            263 |             {activeTab === "sell" && (
+
 
             {activeTab === "account" && (
               <div className="p-4">
@@ -338,11 +307,12 @@ export default function BatamGoApp() {
               <button onClick={() => setActiveTab("home")} className={`flex flex-col items-center text-[10px] font-bold ${activeTab === "home" ? "text-[#0194F3]" : "text-gray-400"}`}><span className="text-lg">🏠</span>Beranda</button>
               <button onClick={() => { setActiveTab("nearby"); setMaxRadius(3); }} className={`flex flex-col items-center text-[10px] font-bold ${activeTab === "nearby" ? "text-[#0194F3]" : "text-gray-400"}`}><span className="text-lg">🧭</span>Nearby</button>
               <button onClick={() => setActiveTab("sell")} className="-mt-6 bg-[#FF5722] text-white w-14 h-14 rounded-full shadow-lg flex flex-col items-center justify-center border-4 border-white"><span className="text-lg leading-none">+</span><span className="text-[9px] font-extrabold">JUAL</span></button>
-              <button onClick={() => setActiveTab("ads")} className={`flex flex-col items-center text-[10px] font-bold ${activeTab === "ads" ? "text-[#0194F3]" : "text-gray-400"}`}><span className="text-lg">📢</span>Iklan Saya</button>
+                           <button onClick={() => setActiveTab("ads")} className={`flex flex-col items-center text-[10px] font-bold ${activeTab === "ads" ? "text-[#0194F3]" : "text-gray-400"}`}><span className="text-lg">📢</span>Iklan Saya</button>
               <button onClick={() => setActiveTab("account")} className={`flex flex-col items-center text-[10px] font-bold ${activeTab === "account" ? "text-[#0194F3]" : "text-gray-400"}`}><span className="text-lg">👤</span>Akun</button>
-             </div>
-           </div>
-         </div>
+            </div>
+          </div>
         )}
       </div>
-      </div>
+    </div>
+  );
+}
