@@ -19,6 +19,9 @@ export interface AdItem {
   waClicks: number;
 }
 
+const makeCardImg = (bg: string, emoji: string, label: string) =>
+  `data:image/svg+xml;utf8,<svg xmlns="http://w3.org" width="400" height="400"><rect width="400" height="400" fill="${encodeURIComponent(bg)}"/><text x="50%" y="46%" dominant-baseline="middle" text-anchor="middle" font-size="90">${emoji}</text><text x="50%" y="68%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="22" fill="%23334155">${encodeURIComponent(label)}</text></svg>`;
+
 export const INITIAL_ADS: AdItem[] = [
   {
     id: "1",
@@ -34,7 +37,7 @@ export const INITIAL_ADS: AdItem[] = [
     isVerified: true,
     whatsapp: "6281270001111",
     description: "Kamar mandi dalam, AC, WiFi, parkir motor aman. Dekat Kepri Mall & Batamindo.",
-    image: "https://unsplash.com",
+    image: makeCardImg("#DBEAFE", "🏠", "KOST AC SUKAJADI"),
     views: 890,
     waClicks: 45,
   },
@@ -50,7 +53,7 @@ export const INITIAL_ADS: AdItem[] = [
     isVerified: true,
     whatsapp: "6281270002222",
     description: "Surat lengkap FTZ Batam, pajak hidup panjang, mesin halus terawat, ban tebal.",
-    image: "https://unsplash.com",
+    image: makeCardImg("#FFEDD5", "🏍️", "VARIO 160 FTZ"),
     views: 342,
     waClicks: 18,
   },
@@ -66,7 +69,7 @@ export const INITIAL_ADS: AdItem[] = [
     isVerified: false,
     whatsapp: "6281270003333",
     description: "Jual cepat edisi pindahan kerja. Dingin normal, karet pintu rapat, tidak ada karat.",
-    image: "https://unsplash.com",
+    image: makeCardImg("#E0F2FE", "❄️", "KULKAS LG 2 PINTU"),
     views: 215,
     waClicks: 12,
   },
@@ -82,7 +85,7 @@ export const INITIAL_ADS: AdItem[] = [
     isVerified: true,
     whatsapp: "6281270004444",
     description: "Tipe 45/90, 2 kamar tidur, 1 kamar mandi, carport keramik, bebas banjir.",
-    image: "https://unsplash.com",
+    image: makeCardImg("#DCFCE7", "🏡", "RUMAH TIBAN SHM"),
     views: 510,
     waClicks: 29,
   },
@@ -98,7 +101,7 @@ export const INITIAL_ADS: AdItem[] = [
     isVerified: false,
     whatsapp: "6281270005555",
     description: "Jarang dipakai, fungsi normal 100%, lengkap dengan koper dan mata bor.",
-    image: "https://unsplash.com",
+    image: makeCardImg("#FEF3C7", "🛠️", "SET BOR BOSCH"),
     views: 128,
     waClicks: 7,
   },
