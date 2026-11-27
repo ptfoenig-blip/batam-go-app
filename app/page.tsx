@@ -72,7 +72,7 @@ export default function BatamGoApp() {
       .sort((a, b) => (a.isPriority === b.isPriority ? a.distanceKm - b.distanceKm : a.isPriority ? -1 : 1));
   }, [ads, selectedCategory, selectedDistrict, maxRadius, minPrice, maxPrice, searchQuery]);
 
-    const compressImage = (file: File): Promise<Blob> =>
+     const compressImage = (file: File): Promise<Blob> =>
     new Promise((resolve) => {
       const img = new Image();
       img.src = URL.createObjectURL(file);
@@ -84,7 +84,7 @@ export default function BatamGoApp() {
         canvas.height = img.height * scale;
         const ctx = canvas.getContext("2d");
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => resolve(blob || file), "image/jpeg", 0.75);
+        canvas.toBlob((blob) => resolve(blob || file), "image/jpeg", 0.7);
       };
     });
 
@@ -93,42 +93,55 @@ export default function BatamGoApp() {
     if (!newTitle || !newPrice || !newDesc || isUploading) return;
     setIsUploading(true);
     let imageUrl = "/kost.jpg";
-    if (photoFile) {
-      const compressed = await compressImage(photoFile);
-      const fileName = `${Date.now()}.jpg`;
-      const { error: uploadErr } = await supabase.storage
-        .from("ad-images")
-        .upload(fileName, compressed, { contentType: "image/jpeg" });
-      if (uploadErr) {
-        alert("Gagal upload foto: " + uploadErr.message);
-        setIsUploading(false);
+    try {
+      if (photoFile) {
+        const compressed = await compressImage(photoFile);
+        const fileName = `${Date.now()}.jpg`;
+        const sbUrl = "https://supabase.co";
+        const sbKey = "sb_publishable_llzVd0-Do_mq7ahXiiSABA_QSxdSvEu";
+        const res = await fetch(`${sbUrl}/storage/v1/object/ad-images/${fileName}`, {
+          method: "POST",
+          headers: {
+            apikey: sbKey,
+            Authorization: `Bearer ${sbKey}`,
+            "Content-Type": "image/jpeg",
+          },
+          body: compressed,
+        });
+        if (!res.ok) {
+          const errText = await res.text();
+          alert("Gagal upload foto: " + errText);
+          setIsUploading(false);
+          return;
+        }
+        imageUrl = `${sbUrl}/storage/v1/object/public/ad-images/${fileName}`;
+      }
+      const priceUnit = newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined;
+      const badge = newCategory === "otomotif" ? "FTZ BATAM" : "BARU";
+      const sellerWa = waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999";
+      const { data: inserted, error: dbErr } = await supabase.from("ads").insert([{
+        title: newTitle, price: Number(newPrice), price_unit: priceUnit ?? null, category: newCategory,
+        district: newDistrict, distance_km: 0.5, badge, seller_name: "Penjual Batam", is_verified: true,
+        whatsapp: sellerWa, description: newDesc, image: imageUrl,
+      }]).select().single();
+      setIsUploading(false);
+      if (dbErr) {
+        alert("Gagal menyimpan iklan: " + dbErr.message);
         return;
       }
-      const { data: pub } = supabase.storage.from("ad-images").getPublicUrl(fileName);
-      imageUrl = pub.publicUrl;
+      const created: AdItem = {
+        id: inserted ? String(inserted.id) : Date.now().toString(), title: newTitle, price: Number(newPrice),
+        priceUnit, category: newCategory, district: newDistrict, distanceKm: 0.5, badge,
+        sellerName: "Penjual Batam", isVerified: true, whatsapp: sellerWa, description: newDesc,
+        image: imageUrl, views: 1, waClicks: 0,
+      };
+      setAds([created, ...ads]);
+      setNewTitle(""); setNewPrice(""); setNewDesc(""); setPhotoFile(null);
+      setActiveTab("home");
+    } catch (err) {
+      setIsUploading(false);
+      alert("Koneksi terputus: " + String(err));
     }
-    const priceUnit = newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined;
-    const badge = newCategory === "otomotif" ? "FTZ BATAM" : "BARU";
-    const sellerWa = waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999";
-    const { data: inserted, error: dbErr } = await supabase.from("ads").insert([{
-      title: newTitle, price: Number(newPrice), price_unit: priceUnit ?? null, category: newCategory,
-      district: newDistrict, distance_km: 0.5, badge, seller_name: "Penjual Batam", is_verified: true,
-      whatsapp: sellerWa, description: newDesc, image: imageUrl,
-    }]).select().single();
-    setIsUploading(false);
-    if (dbErr) {
-      alert("Gagal menyimpan iklan: " + dbErr.message);
-      return;
-    }
-    const created: AdItem = {
-      id: inserted ? String(inserted.id) : Date.now().toString(), title: newTitle, price: Number(newPrice),
-      priceUnit, category: newCategory, district: newDistrict, distanceKm: 0.5, badge,
-      sellerName: "Penjual Batam", isVerified: true, whatsapp: sellerWa, description: newDesc,
-      image: imageUrl, views: 1, waClicks: 0,
-    };
-    setAds([created, ...ads]);
-    setNewTitle(""); setNewPrice(""); setNewDesc(""); setPhotoFile(null);
-        setActiveTab("home");
   };
 
   const openWhatsApp = (ad: AdItem, customOffer?: string) => {
