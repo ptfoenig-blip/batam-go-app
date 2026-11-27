@@ -259,10 +259,7 @@ export default function BatamGoApp() {
                 </div>
               </div>
             )}
-
-            263 |             {activeTab === "sell" && (
-
-
+            
             {activeTab === "account" && (
               <div className="p-4">
                 <div className="bg-white p-5 rounded-2xl shadow-sm text-center">
