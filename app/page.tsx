@@ -18,7 +18,6 @@ interface AdItem {
   whatsapp: string;
   description: string;
   image: string;
-  createdAt: string;
   views: number;
   waClicks: number;
 }
@@ -38,10 +37,9 @@ const INITIAL_ADS: AdItem[] = [
     isVerified: true,
     whatsapp: "6281270001111",
     description:
-      "Kamar mandi dalam, AC, WiFi, parkir motor aman. Dekat Kepri Mall, Batamindo, Politeknik. Kamar bersih, nyaman. Minat survei langsung hubungi WA.",
+      "Kamar mandi dalam, AC, WiFi, parkir motor aman. Dekat Kepri Mall, Batamindo, Politeknik. Minat survei langsung hubungi WA.",
     image:
       "https://unsplash.com",
-    createdAt: "Hari ini",
     views: 890,
     waClicks: 45,
   },
@@ -57,10 +55,9 @@ const INITIAL_ADS: AdItem[] = [
     isVerified: true,
     whatsapp: "6281270002222",
     description:
-      "Surat lengkap FTZ Batam, pajak hidup panjang, mesin halus terawat, ban tebal. Siap pakai harian tanpa PR. Lokasi cek unit di Batam Center.",
+      "Surat lengkap FTZ Batam, pajak hidup panjang, mesin halus terawat, ban tebal. Siap pakai harian tanpa PR.",
     image:
       "https://unsplash.com",
-    createdAt: "2 jam lalu",
     views: 342,
     waClicks: 18,
   },
@@ -79,7 +76,6 @@ const INITIAL_ADS: AdItem[] = [
       "Jual cepat edisi pindahan kerja. Dingin normal, karet pintu rapat, tidak ada karat. Bisa bantu carikan pick-up angkut area Batam.",
     image:
       "https://unsplash.com",
-    createdAt: "Kemarin",
     views: 215,
     waClicks: 12,
   },
@@ -98,7 +94,6 @@ const INITIAL_ADS: AdItem[] = [
       "Tipe 45/90, 2 kamar tidur, 1 kamar mandi, carport keramik, bebas banjir. Dekat pasar Tiban Center & akses mudah ke Nagoya.",
     image:
       "https://unsplash.com",
-    createdAt: "3 hari lalu",
     views: 510,
     waClicks: 29,
   },
@@ -117,7 +112,6 @@ const INITIAL_ADS: AdItem[] = [
       "Jarang dipakai, fungsi normal 100%, lengkap dengan koper dan mata bor. Cocok untuk tukang atau keperluan rumah tangga.",
     image:
       "https://unsplash.com",
-    createdAt: "4 hari lalu",
     views: 128,
     waClicks: 7,
   },
@@ -135,7 +129,8 @@ const BATAM_DISTRICTS = [
   "Nongsa",
 ];
 
-const RADIUS_OPTIONS =;
+const RADIUS_OPTIONS = Array.of(1, 3, 5, 10, 20);
+const NEGO_RATIOS = Array.of(0.95, 0.9, 0.85);
 
 export default function BatamGoApp() {
   const [activeTab, setActiveTab] = useState<
@@ -144,7 +139,6 @@ export default function BatamGoApp() {
   const [ads, setAds] = useState<AdItem[]>(INITIAL_ADS);
   const [selectedAd, setSelectedAd] = useState<AdItem | null>(null);
 
-  // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category>("semua");
   const [selectedDistrict, setSelectedDistrict] = useState("Semua Batam");
@@ -153,11 +147,9 @@ export default function BatamGoApp() {
   const [maxPrice, setMaxPrice] = useState<string>("");
   const [showFilterSheet, setShowFilterSheet] = useState(false);
 
-  // Nego Modal (Otomotif, Elektronik, Perkakas)
   const [showNegoSheet, setShowNegoSheet] = useState(false);
   const [negoOffer, setNegoOffer] = useState<string>("");
 
-  // Seller Verification & Post Ad Form
   const [isSellerVerified, setIsSellerVerified] = useState(false);
   const [waNumber, setWaNumber] = useState("");
   const [otpInput, setOtpInput] = useState("");
@@ -230,7 +222,6 @@ export default function BatamGoApp() {
       description: newDesc,
       image:
         "https://unsplash.com",
-      createdAt: "Baru saja",
       views: 1,
       waClicks: 0,
     };
@@ -253,9 +244,7 @@ export default function BatamGoApp() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center select-none">
-      {/* Mobile Container Frame */}
       <div className="w-full max-w-md bg-[#F4F6F9] min-h-screen pb-24 relative shadow-xl overflow-x-hidden">
-        {/* DETAIL PRODUCT VIEW */}
         {selectedAd ? (
           <div className="bg-white min-h-screen pb-24">
             <div className="relative">
@@ -299,4 +288,9 @@ export default function BatamGoApp() {
                 </span>
               </p>
 
-              {/* Seller Card */}
+              <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#0194F3] text-white flex items-center justify-center font-bold">
+                    {selectedAd.sellerName.charAt(0)}
+                  </div>
+                  <div>
