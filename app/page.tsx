@@ -138,6 +138,7 @@ export default function BatamGoApp() {
     setAds(next);
     try { localStorage.setItem("batamgo_ads_v3", JSON.stringify(next)); } catch {}
     setEditingAdId(null); setNewTitle(""); setNewPrice(""); setNewDesc(""); setOwnershipProof(""); setPreviews(Array.of()); setAgreedTerms(false); setActiveTab("home");
+    };
   const sendMsg = (txt?: string) => {
     if (!selectedAd) return;
     if (Date.now() - lastMsgTime < 1500) { alert("Tunggu sebentar sebelum mengirim pesan berikutnya."); return; }
