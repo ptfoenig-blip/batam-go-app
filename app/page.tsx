@@ -38,6 +38,21 @@ export default function BatamGoApp() {
   const [lastMsgTime, setLastMsgTime] = useState(0);
   const BANNED_WORDS = Array.of("judi", "slot", "gacor", "narkoba", "sabu", "ganja", "senpi", "senjata api", "ilegal", "selundupan", "palsu", "ijazah palsu", "stnk palsu", "bokep", "porno");
   const COD_SPOTS = Array.of("Mega Mall Batam Center", "BCS Mall Baloi", "Kepri Mall Sukajadi", "SP Plaza Batu Aji");
+  const [reports, setReports] = useState<Array<{ id: string; adId: string; adTitle: string; reason: string; note: string; time: string }>>(Array.of());
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [adminPin, setAdminPin] = useState("");
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [showInbox, setShowInbox] = useState(false);
+  const [promoModal, setPromoModal] = useState<{ ad: AdItem; type: "Sundul Iklan" | "Highlight Prioritas"; price: number } | null>(null);
+  const [showAngkutInfo, setShowAngkutInfo] = useState(false);
+  const [bannerIdx, setBannerIdx] = useState(0);
+  const [banners, setBanners] = useState(Array.of(
+    { id: "b1", tag: "MITRA UMKM BATAM", title: "🚚 Jasa Angkut & Pindahan Batam", desc: "Pick-up & Lori Box mulai Rp 100rb seluruh kecamatan", bg: "from-blue-600 to-cyan-500", action: "angkut" },
+    { id: "b2", tag: "SPONSORED • OTOMOTIF", title: "🏍️ Bursa Motor & Mobil FTZ Batam", desc: "Cek unit resmi & aman COD di Batam Center", bg: "from-orange-500 to-amber-500", action: "otomotif" },
+    { id: "b3", tag: "PASANG BANNER ANDA", title: "📢 Promosikan Usaha Anda di Sini!", desc: "Jangkau ribuan warga Batam setiap hari • PT. Mandiri Wahana Makmur", bg: "from-emerald-600 to-teal-500", action: "admin_ads" }
+  ));
+  const [newBannerTitle, setNewBannerTitle] = useState("");
+  const [newBannerDesc, setNewBannerDesc] = useState("");
 
   useEffect(() => {
     try {
@@ -47,6 +62,10 @@ export default function BatamGoApp() {
       if (c) setChats(JSON.parse(c));
     } catch {}
   }, []);
+  useEffect(() => {
+    const t = setInterval(() => setBannerIdx((i) => (i + 1) % banners.length), 3500);
+    return () => clearInterval(t);
+  }, [banners.length]);
 
   const fmtRp = (n: number) => "Rp " + n.toLocaleString("id-ID");
   const fmtNum = (s: string) => { const d = s.replace(/\D/g, ""); return d ? Number(d).toLocaleString("id-ID") : ""; };
@@ -174,7 +193,7 @@ export default function BatamGoApp() {
             )}
             {showReport && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-                <form onSubmit={(e) => { e.preventDefault(); setShowReport(false); setReportNote(""); alert("Terima kasih! Laporan Anda diteruskan ke Tim Keamanan BATAM GO."); }} className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3">
+                             <form onSubmit={(e) => { e.preventDefault(); const r = { id: Date.now().toString(), adId: selectedAd.id, adTitle: selectedAd.title, reason: reportReason, note: reportNote, time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) }; setReports((prev) => Array.of(r, ...prev)); setShowReport(false); setReportNote(""); alert("Laporan tersimpan & diteruskan ke Panel Admin PT. Mandiri Wahana Makmur."); }} className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3">
                   <div className="flex justify-between items-center"><h3 className="font-bold text-gray-800">🚩 Laporkan Iklan Mencurigakan</h3><button type="button" onClick={() => setShowReport(false)} className="text-gray-400 text-sm font-bold">✕</button></div>
                   <select value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 text-xs bg-white text-gray-900"><option value="Indikasi Penipuan / Minta Transfer DP">Indikasi Penipuan / Minta Transfer DP</option><option value="Barang Palsu / Terlarang">Barang Palsu / Terlarang</option><option value="Harga Tidak Masuk Akal">Harga Tidak Masuk Akal</option><option value="Spam / Iklan Duplikat">Spam / Iklan Duplikat</option></select>
                   <textarea rows={3} value={reportNote} onChange={(e) => setReportNote(e.target.value)} placeholder="Keterangan tambahan (opsional)..." className="w-full border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900" />
@@ -194,7 +213,31 @@ export default function BatamGoApp() {
                   </div>
                   <div className="bg-white rounded-xl flex items-center px-3 py-2.5 shadow-sm"><span className="text-gray-400 mr-2">🔍</span><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari kost, motor FTZ, kulkas di Batam..." className="w-full text-sm text-gray-800 outline-none" /></div>
                 </div>
-                <div className="mx-3 mt-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white p-2.5 rounded-xl flex items-center justify-between text-xs shadow-sm"><span>🚚 <b>Jasa Angkut & Pindahan Batam</b> - Mulai 100rb</span><span className="bg-white text-blue-600 font-bold px-2 py-0.5 rounded">Info</span></div>
+                             {banners.length > 0 && (() => {
+               const b = banners.at(bannerIdx % banners.length) || banners.at(0)!;
+               const handleBannerClick = () => {
+                 if (b.action === "angkut") setShowAngkutInfo(true);
+                 else if (b.action === "otomotif") setSelectedCategory("otomotif");
+                 else window.open(`https://wa.me{encodeURIComponent("Halo Admin PT. Mandiri Wahana Makmur, saya tertarik pasang Banner Iklan di aplikasi BATAM GO.")}`, "_blank");
+               };
+               return (
+                 <div className="mx-3 mt-3">
+                   <div onClick={handleBannerClick} className={`bg-gradient-to-r ${b.bg} text-white p-3.5 rounded-2xl shadow-sm cursor-pointer transition-all`}>
+                     <div className="flex justify-between items-center mb-1">
+                       <span className="text-[9px] font-extrabold bg-black/25 px-2 py-0.5 rounded-full tracking-wider">{b.tag}</span>
+                       <span className="text-[10px] font-bold bg-white text-gray-900 px-2 py-0.5 rounded-lg">Lihat ›</span>
+                     </div>
+                     <div className="text-sm font-extrabold leading-snug">{b.title}</div>
+                     <div className="text-[11px] text-white/90 mt-0.5">{b.desc}</div>
+                   </div>
+                   <div className="flex justify-center gap-1.5 mt-1.5">
+                     {banners.map((item, idx) => (
+                       <button key={item.id} onClick={() => setBannerIdx(idx)} className={`h-1.5 rounded-full transition-all ${idx === bannerIdx % banners.length ? "w-5 bg-[#0194F3]" : "w-1.5 bg-gray-300"}`} />
+                     ))}
+                   </div>
+                 </div>
+               );
+             })()}
                 <div className="bg-white mx-3 mt-3 p-3 rounded-xl shadow-sm grid grid-cols-5 gap-1 text-center">
                   {(["properti", "otomotif", "elektronik", "perkakas", "lainnya"] as const).map((cat) => (
                     <button key={cat} onClick={() => setSelectedCategory(selectedCategory === cat ? "semua" : cat)} className={`flex flex-col items-center p-1.5 rounded-xl ${selectedCategory === cat ? "bg-blue-50 ring-1 ring-[#0194F3]" : ""}`}>
@@ -264,30 +307,49 @@ export default function BatamGoApp() {
                 )}
               </div>
             )}
-            {activeTab === "ads" && (
+                        {activeTab === "ads" && (
               <div className="p-4 space-y-3">
-                <div className="bg-[#0194F3] text-white p-4 rounded-2xl flex justify-between items-center"><div><h2 className="font-extrabold text-base">Iklan Saya & Promosi</h2><p className="text-xs text-blue-100">Tingkatkan penjualan lebih cepat di Batam</p></div><span className="bg-white/20 px-2.5 py-1 rounded-lg text-xs font-bold">Kuota Gratis: 2/2</span></div>
-                {ads.slice(0, 2).map((ad) => (
+                <div className="bg-[#0194F3] text-white p-4 rounded-2xl flex justify-between items-center">
+                  <div><h2 className="font-extrabold text-base">Iklan Saya & Promosi</h2><p className="text-xs text-blue-100">Tingkatkan penjualan UMKM di Batam</p></div>
+                  <button onClick={() => setShowInbox(true)} className="bg-white text-[#0194F3] px-3 py-1.5 rounded-xl text-xs font-extrabold shadow-sm">💬 Inbox ({Object.keys(chats).length})</button>
+                </div>
+                {ads.slice(0, 3).map((ad) => (
                   <div key={ad.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                    <div className="flex gap-3"><img src={ad.image} alt={ad.title} className="w-16 h-16 rounded-lg object-cover" /><div className="flex-1"><h3 className="text-xs font-bold text-gray-800 line-clamp-1">{ad.title}</h3><div className="text-sm font-extrabold text-gray-900">{fmtRp(ad.price)}</div><div className="text-[11px] text-gray-500 mt-1">👁️ {ad.views} Dilihat • 💬 {ad.waClicks} Chat Masuk</div></div></div>
-                    <div className="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-gray-100"><button onClick={() => alert("Membuka QRIS Pembayaran Sundul Iklan (Rp 5.000)...")} className="py-2 rounded-lg border border-[#0194F3] text-[#0194F3] text-xs font-bold">⬆️ Sundul (Rp 5rb)</button><button onClick={() => alert("Membuka QRIS Pembayaran Highlight Prioritas (Rp 15.000)...")} className="py-2 rounded-lg bg-[#FF5722] text-white text-xs font-bold">⚡ Highlight (Rp 15rb)</button></div>
+                    <div className="flex gap-3"><img src={ad.image} alt={ad.title} className="w-16 h-16 rounded-lg object-cover" /><div className="flex-1"><h3 className="text-xs font-bold text-gray-800 line-clamp-1">{ad.title}</h3><div className="text-sm font-extrabold text-gray-900">{fmtRp(ad.price)}</div><div className="text-[11px] text-gray-500 mt-1">{ad.isPriority ? "⚡ Sedang Prioritas" : "Reguler"} • 💬 {(chats[ad.id] || Array.of()).length} Pesan</div></div></div>
+                    <div className="grid grid-cols-3 gap-1.5 mt-3 pt-2.5 border-t border-gray-100">
+                      <button onClick={() => setPromoModal({ ad, type: "Sundul Iklan", price: 5000 })} className="py-2 rounded-lg border border-[#0194F3] text-[#0194F3] text-[11px] font-bold">⬆️ Sundul</button>
+                      <button onClick={() => setPromoModal({ ad, type: "Highlight Prioritas", price: 15000 })} className="py-2 rounded-lg bg-[#FF5722] text-white text-[11px] font-bold">⚡ Highlight</button>
+                      <button onClick={() => shareAd(ad)} className="py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">📤 Bagikan</button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
-                        {activeTab === "account" && (
+            {activeTab === "account" && (
               <div className="p-4 space-y-3">
                 <div className="bg-white p-5 rounded-2xl shadow-sm text-center">
                   <div className="w-16 h-16 rounded-full bg-[#0194F3] text-white text-2xl font-bold flex items-center justify-center mx-auto mb-2">B</div>
                   <h2 className="font-bold text-gray-800">Pengguna BATAM GO</h2>
                   <p className="text-xs text-gray-500 mb-4">{isVerified ? "✔️ Terverifikasi Keamanan Admin" : "Belum Verifikasi Nomor Keamanan"}</p>
-                  <button onClick={() => setActiveTab("ads")} className="w-full py-2.5 rounded-xl bg-blue-50 text-[#0194F3] font-bold text-xs">Kelola Iklan & Promosi Saya</button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => setActiveTab("ads")} className="py-2.5 rounded-xl bg-blue-50 text-[#0194F3] font-bold text-xs">📢 Iklan Saya</button>
+                    <button onClick={() => setShowInbox(true)} className="py-2.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs">💬 Inbox ({Object.keys(chats).length})</button>
+                  </div>
                 </div>
                 <div className="bg-white p-4 rounded-2xl shadow-sm space-y-2 text-left text-xs">
                   <div className="font-bold text-gray-800 mb-1">⚖️ Pusat Hukum & Keamanan BATAM GO</div>
                   <button onClick={() => setShowLegal("terms")} className="w-full p-2.5 rounded-xl bg-gray-50 font-semibold text-gray-700 flex justify-between"><span>📜 Syarat, Ketentuan & Aturan FTZ Batam</span><span>›</span></button>
                   <button onClick={() => setShowLegal("privacy")} className="w-full p-2.5 rounded-xl bg-gray-50 font-semibold text-gray-700 flex justify-between"><span>🔒 Kebijakan Privasi & Data (UU PDP)</span><span>›</span></button>
                   <button onClick={() => window.open(`https://wa.me{encodeURIComponent("Yuk jual beli & cari kost aman di Batam lewat aplikasi BATAM GO: https://vercel.app")}`, "_blank")} className="w-full p-2.5 rounded-xl bg-emerald-50 font-bold text-emerald-700 flex justify-between"><span>📣 Ajak Teman Batam (Dapat Kuota Sundul)</span><span>›</span></button>
+                  <button onClick={() => setShowAdmin(true)} className="w-full p-2.5 rounded-xl bg-gray-900 font-bold text-amber-400 flex justify-between"><span>🛡️ Panel Moderasi & Banner Admin ({reports.length})</span><span>›</span></button>
+                </div>
+                <div className="bg-white p-4 rounded-2xl shadow-sm space-y-2 text-xs border border-blue-100">
+                  <div className="font-extrabold text-gray-800">🏢 Tentang Pengelola Resmi</div>
+                  <p className="text-gray-600 leading-relaxed">Aplikasi <b>BATAM GO</b> dikelola secara resmi di bawah bendera <b>PT. Mandiri Wahana Makmur</b> (Kota Batam, Kepulauan Riau) untuk mendukung pemberdayaan UMKM & ekonomi digital warga Batam.</p>
+                  <div className="pt-1 space-y-1.5">
+                    <a href={`https://wa.me{encodeURIComponent("Halo Admin PT. Mandiri Wahana Makmur (BATAM GO), saya ingin bertanya / kerja sama iklan.")}`} target="_blank" className="block w-full py-2 px-3 rounded-xl bg-[#25D366] text-white font-bold text-center">💬 WhatsApp Official Admin: +62 813-6332-372</a>
+                    <a href="mailto:mandiriwahanamakmur2020@gmail.com" className="block w-full py-2 px-3 rounded-xl bg-gray-100 text-gray-800 font-semibold text-center">✉️ mandiriwahanamakmur2020@gmail.com</a>
+                  </div>
                 </div>
               </div>
             )}
@@ -311,6 +373,93 @@ export default function BatamGoApp() {
                 </div>
               </div>
             )}
+                       {showInbox && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3 max-h-[80vh] overflow-y-auto">
+                  <div className="flex justify-between items-center"><h3 className="font-bold text-sm text-gray-800">💬 Inbox Pesan Saya</h3><button onClick={() => setShowInbox(false)} className="text-gray-400 font-bold">✕</button></div>
+                  {Object.keys(chats).length === 0 ? (
+                    <p className="text-xs text-gray-500 text-center py-8">Belum ada percakapan masuk. Klik iklan lalu pilih Hubungi Penjual untuk memulai chat.</p>
+                  ) : (
+                    Object.entries(chats).map(([adId, list]) => {
+                      const targetAd = ads.find((a) => a.id === adId);
+                      const last = list.at(-1);
+                      return (
+                        <div key={adId} onClick={() => { if (targetAd) { setShowInbox(false); setSelectedAd(targetAd); setShowChat(true); } }} className="p-3 rounded-xl border border-gray-200 bg-gray-50 cursor-pointer flex justify-between items-center">
+                          <div><div className="text-xs font-bold text-gray-800">{targetAd?.title || "Iklan Batam"}</div><div className="text-[11px] text-gray-500 truncate max-w-[220px]">{last?.text}</div></div>
+                          <span className="bg-[#0194F3] text-white text-[10px] font-bold px-2 py-1 rounded-full">{list.length} Pesan</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+            {showAdmin && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3 max-h-[85vh] overflow-y-auto">
+                  <div className="flex justify-between items-center"><h3 className="font-bold text-sm text-gray-800">🛡️ Admin PT. Mandiri Wahana Makmur</h3><button onClick={() => setShowAdmin(false)} className="text-gray-400 font-bold">✕</button></div>
+                  {!adminUnlocked ? (
+                    <div className="space-y-2.5">
+                      <p className="text-xs text-gray-500">Masukkan PIN Admin untuk mengelola laporan warga & banner slider.</p>
+                      <input type="password" maxLength={4} value={adminPin} onChange={(e) => setAdminPin(e.target.value)} placeholder="PIN Admin (Default: 2026)" className="w-full border border-gray-300 rounded-xl p-2.5 text-center font-bold tracking-widest text-gray-900" />
+                      <button onClick={() => adminPin === "2026" ? setAdminUnlocked(true) : alert("PIN Admin salah!")} className="w-full py-2.5 rounded-xl bg-gray-900 text-amber-400 font-bold text-xs">Masuk Dashboard Admin</button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 text-xs">
+                      <div className="p-3 rounded-xl bg-blue-50 text-blue-900 font-semibold">Iklan Aktif: {ads.length} • Laporan: {reports.length} • Banner: {banners.length}</div>
+                      <div className="p-3 rounded-xl border border-gray-200 space-y-2">
+                        <div className="font-bold text-gray-800">📢 Tambah Banner Slider Mitra</div>
+                        <input type="text" value={newBannerTitle} onChange={(e) => setNewBannerTitle(e.target.value)} placeholder="Judul Banner (misal: Promo Service AC Batam)" className="w-full border border-gray-300 rounded-lg p-2 text-xs text-gray-900" />
+                        <input type="text" value={newBannerDesc} onChange={(e) => setNewBannerDesc(e.target.value)} placeholder="Keterangan singkat..." className="w-full border border-gray-300 rounded-lg p-2 text-xs text-gray-900" />
+                        <button onClick={() => { if (!newBannerTitle.trim()) return; setBanners((prev) => Array.of(...prev, { id: Date.now().toString(), tag: "SPONSORED MITRA", title: newBannerTitle.trim(), desc: newBannerDesc.trim() || "Promo resmi mitra BATAM GO", bg: "from-indigo-600 to-purple-600", action: "admin_ads" })); setNewBannerTitle(""); setNewBannerDesc(""); alert("Banner baru ditambahkan ke slider beranda!"); }} className="w-full py-2 rounded-lg bg-[#0194F3] text-white font-bold">Tayangkan Banner Baru</button>
+                      </div>
+                      {reports.length === 0 ? (
+                        <p className="text-gray-500 text-center py-3">Belum ada laporan pelanggaran dari pengguna.</p>
+                      ) : (
+                        reports.map((rep) => (
+                          <div key={rep.id} className="p-3 rounded-xl border border-red-200 bg-red-50 space-y-1.5">
+                            <div className="font-bold text-red-800">🚩 {rep.adTitle}</div>
+                            <div className="text-[11px] text-red-700">Alasan: {rep.reason} ({rep.time})</div>
+                            <button onClick={() => { const filtered = ads.filter((a) => a.id !== rep.adId); setAds(filtered); setReports((prev) => prev.filter((r) => r.id !== rep.id)); try { localStorage.setItem("batamgo_ads_v3", JSON.stringify(filtered)); } catch {} alert("Iklan berhasil di-Take-Down!"); }} className="px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold text-[11px]">🗑️ Take-Down Iklan</button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {promoModal && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3 text-center">
+                  <div className="flex justify-between items-center"><h3 className="font-bold text-sm text-gray-800">💳 Pembayaran QRIS {promoModal.type}</h3><button onClick={() => setPromoModal(null)} className="text-gray-400 font-bold">✕</button></div>
+                  <p className="text-xs text-gray-600">Iklan: <b>{promoModal.ad.title}</b></p>
+                  <div className="p-4 bg-gray-50 border-2 border-dashed border-[#0194F3] rounded-2xl mx-auto max-w-[230px]">
+                    <div className="text-xs font-extrabold text-[#0194F3] mb-1">QRIS PT. MANDIRI WAHANA MAKMUR</div>
+                    <div className="text-lg font-black text-gray-900">{fmtRp(promoModal.price)}</div>
+                    <div className="text-[10px] text-gray-500 mt-1">Scan via GoPay / OVO / DANA / M-Banking</div>
+                  </div>
+                  <button onClick={() => { const updated = ads.map((a) => a.id === promoModal.ad.id ? { ...a, isPriority: true } : a); setAds(updated); try { localStorage.setItem("batamgo_ads_v3", JSON.stringify(updated)); } catch {} setPromoModal(null); alert("Pembayaran terkonfirmasi! Iklan Anda kini tampil di posisi ⚡ PRIORITAS."); }} className="w-full py-3 rounded-xl bg-[#25D366] text-white font-bold text-xs">✔️ Konfirmasi Pembayaran & Naikkan Iklan</button>
+                </div>
+              </div>
+            )}
+            {showAngkutInfo && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3">
+                  <div className="flex justify-between items-center"><h3 className="font-bold text-sm text-gray-800">🚚 Mitra Jasa Angkut & Pindahan Batam</h3><button onClick={() => setShowAngkutInfo(false)} className="text-gray-400 font-bold">✕</button></div>
+                  <p className="text-xs text-gray-600 leading-relaxed">Program pemberdayaan driver lokal Kota Batam di bawah koordinasi <b>PT. Mandiri Wahana Makmur</b> untuk pindahan kost, angkut kulkas, motor, dan barang UMKM:</p>
+                  <div className="space-y-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-blue-50 flex justify-between"><span>🛻 Pick-Up Bak (Dalam Kecamatan)</span><b>Mulai Rp 100.000</b></div>
+                    <div className="p-2.5 rounded-xl bg-blue-50 flex justify-between"><span>🚛 Lori Box / Pindahan Rumah</span><b>Mulai Rp 250.000</b></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => { setShowAngkutInfo(false); setSelectedCategory("lainnya"); }} className="py-2.5 rounded-xl bg-gray-100 text-gray-800 font-bold text-xs">Lihat di Kategori Lainnya</button>
+                    <a href={`https://wa.me{encodeURIComponent("Halo Admin BATAM GO, saya ingin daftar / pesan Mitra Jasa Angkut Batam.")}`} target="_blank" className="py-2.5 rounded-xl bg-[#25D366] text-white font-bold text-xs text-center">💬 Hubungi Admin</a>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {showFilter && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
                 <div className="bg-white w-full max-w-md rounded-t-2xl p-5">
