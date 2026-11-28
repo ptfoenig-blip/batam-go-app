@@ -35,6 +35,10 @@ export default function BatamGoApp() {
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [ftzStatus, setFtzStatus] = useState("Resmi Nasional / Non-FTZ");
   const [customTag, setCustomTag] = useState("");
+  const [verifyStatus, setVerifyStatus] = useState<"Unverified" | "Pending" | "Verified" | "Rejected" | "Suspended">("Unverified");
+  const [regContact, setRegContact] = useState("");
+  const [kycDocType, setKycDocType] = useState("KTP Domisili Batam");
+  const [pdpConsent, setPdpConsent] = useState(false);
   const [showLegal, setShowLegal] = useState<"terms" | "privacy" | null>(null);
   const [lastMsgTime, setLastMsgTime] = useState(0);
   const BANNED_WORDS = Array.of("judi", "slot", "gacor", "narkoba", "sabu", "ganja", "senpi", "senjata api", "ilegal", "selundupan", "palsu", "ijazah palsu", "stnk palsu", "bokep", "porno");
@@ -101,6 +105,7 @@ export default function BatamGoApp() {
   };
   const publishAd = (e: React.FormEvent) => {
     e.preventDefault();
+    if (verifyStatus !== "Verified") { alert(`Tidak dapat publish iklan! Status identitas Anda: ${verifyStatus}. Harap verifikasi terlebih dahulu.`); return; }
     if (!agreedTerms) { alert("Anda wajib mencentang persetujuan Syarat & Ketentuan BATAM GO terlebih dahulu."); return; }
     const foundBanned = BANNED_WORDS.find((w) => `${newTitle} ${newDesc}`.toLowerCase().includes(w));
     if (foundBanned) { alert(`⚠️ Iklan ditolak otomatis karena mengandung kata terlarang ("${foundBanned}").`); return; }
@@ -108,7 +113,7 @@ export default function BatamGoApp() {
     if (!newTitle.trim() || price < 1000 || !newDesc.trim()) return;
     const imgs = previews.length ? previews : Array.of("/kost.jpg");
     const isFtzCat = newCategory === "otomotif" || newCategory === "elektronik";
-    const badge = isFtzCat ? (ftzStatus.includes("Khusus") ? "KHUSUS FTZ BATAM" : "RESMI NON-FTZ") : "TERVERIFIKASI";
+    const badge = customTag || (isFtzCat ? (ftzStatus.includes("Khusus") ? "KHUSUS FTZ BATAM" : "RESMI NON-FTZ") : "TERVERIFIKASI");
     const item: AdItem = {
       id: Date.now().toString(), title: newTitle.trim().slice(0, 70), price,
       priceUnit: newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined,
@@ -274,15 +279,53 @@ export default function BatamGoApp() {
             )}
             {activeTab === "sell" && (
               <div className="p-4">
-                {!isVerified ? (
-                  <div className="bg-white p-5 rounded-2xl shadow-sm">
-                    <h2 className="text-lg font-extrabold text-gray-800 mb-1">Verifikasi Keamanan Penjual</h2>
-                    <p className="text-xs text-gray-500 mb-4">Nomor WhatsApp hanya disimpan sebagai verifikasi keamanan oleh Admin dan tidak ditampilkan ke publik.</p>
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800 font-semibold mb-4">✔️ Akun Google Terhubung</div>
-                    <div className="flex gap-2 mb-3"><span className="bg-gray-100 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600">+62</span><input type="tel" value={waNumber} onChange={(e) => setWaNumber(e.target.value)} placeholder="8127000XXXX" className="flex-1 border border-gray-300 rounded-xl px-3 text-sm text-gray-900" /></div>
-                    {!otpSent ? <button onClick={() => waNumber.length >= 9 && setOtpSent(true)} className="w-full py-3 rounded-xl bg-[#0194F3] text-white font-bold text-sm">Kirim Kode OTP Verifikasi</button> : <div><input type="text" maxLength={4} value={otpInput} onChange={(e) => setOtpInput(e.target.value)} placeholder="4 Digit OTP (Contoh: 1234)" className="w-full border border-gray-300 rounded-xl p-3 text-center font-bold tracking-widest mb-3 text-gray-900" /><button onClick={() => otpInput.length === 4 && setIsVerified(true)} className="w-full py-3 rounded-xl bg-[#FF5722] text-white font-bold text-sm">Verifikasi & Lanjut Pasang Iklan</button></div>}
+                                {verifyStatus !== "Verified" ? (
+                  <div className="bg-white p-5 rounded-2xl shadow-sm space-y-3 border border-blue-100">
+                    <div className="flex justify-between items-center">
+                      <h2 className="font-extrabold text-sm text-gray-800">🛡️ Verifikasi Identitas Penjual</h2>
+                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${verifyStatus === "Pending" ? "bg-amber-100 text-amber-800" : verifyStatus === "Suspended" || verifyStatus === "Rejected" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}>Status: {verifyStatus}</span>
+                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">Sesuai kebijakan keamanan <b>BATAM GO</b> & <b>UU PDP</b>, penjual wajib terverifikasi satu kali sebelum menayangkan iklan. NIK & nomor HP privat Anda dienkripsi dan tidak pernah ditampilkan ke publik.</p>
+                    {verifyStatus === "Pending" ? (
+                      <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-2">
+                        <div className="font-bold">⏳ Pengajuan Sedang Ditinjau Admin PT. Mandiri Wahana Makmur</div>
+                        <button type="button" onClick={() => { setVerifyStatus("Verified"); setIsVerified(true); }} className="w-full py-2 rounded-lg bg-emerald-600 text-white font-bold text-xs">✔️ Simulasi Approval Admin (Ubah ke Verified)</button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5 text-xs">
+                        <div>
+                          <label className="block font-bold text-gray-700 mb-1">Nomor WhatsApp / Email Aktif</label>
+                          <div className="flex gap-2">
+                            <input type="text" value={regContact} onChange={(e) => setRegContact(e.target.value)} placeholder="0812xxxxxxxx / email@domain.com" className="flex-1 border border-gray-300 rounded-xl p-2.5 text-gray-900" />
+                            <button type="button" onClick={async () => { const res = await fetch("/api/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "request_otp", contact: regContact }) }); const d = await res.json(); if (!res.ok) return alert(d.error); setOtpSent(true); alert(`Kode OTP terkirim! (Kode uji coba: ${d.demoOtp})`); }} className="px-3 rounded-xl bg-[#0194F3] text-white font-bold">Kirim OTP</button>
+                          </div>
+                        </div>
+                        {otpSent && (
+                          <>
+                            <div>
+                              <label className="block font-bold text-gray-700 mb-1">Kode OTP 6 Digit</label>
+                              <input type="text" maxLength={6} value={otpInput} onChange={(e) => setOtpInput(e.target.value)} placeholder="Masukkan 884210" className="w-full border border-gray-300 rounded-xl p-2.5 text-gray-900 tracking-widest font-bold" />
+                            </div>
+                            <div>
+                              <label className="block font-bold text-gray-700 mb-1">Jenis Identitas (Terenkripsi SHA-256)</label>
+                              <select value={kycDocType} onChange={(e) => setKycDocType(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 bg-white text-gray-900">
+                                <option>KTP Domisili Batam</option>
+                                <option>SIM A / SIM C</option>
+                                <option>NIB / Surat Usaha UMKM Batam</option>
+                              </select>
+                            </div>
+                            <label className="flex items-start gap-2 p-2.5 rounded-xl bg-blue-50 text-[11px] text-blue-900 cursor-pointer">
+                              <input type="checkbox" checked={pdpConsent} onChange={(e) => setPdpConsent(e.target.checked)} className="mt-0.5 accent-[#0194F3]" />
+                              <span>Saya menyetujui pemrosesan data terenkripsi sesuai <b>UU Pelindungan Data Pribadi (UU PDP)</b> & kebijakan retensi BATAM GO.</span>
+                            </label>
+                            <button type="button" onClick={async () => { if (otpInput !== "884210") return alert("Kode OTP salah! Gunakan 884210."); const res = await fetch("/api/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "submit_kyc", contact: regContact, docType: kycDocType, consent: pdpConsent }) }); const d = await res.json(); if (!res.ok) return alert(d.error); setVerifyStatus("Pending"); }} className="w-full py-3 rounded-xl bg-[#FF5722] text-white font-bold">Ajukan Verifikasi Identitas</button>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
+
                   <form onSubmit={publishAd} className="bg-white p-5 rounded-2xl shadow-sm space-y-3">
                     <h2 className="text-lg font-extrabold text-gray-800">Pasang Iklan Baru</h2>
                     <div>
