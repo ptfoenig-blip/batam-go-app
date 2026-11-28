@@ -317,8 +317,8 @@ export default function BatamGoApp() {
                   <div key={ad.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
                     <div className="flex gap-3"><img src={ad.image} alt={ad.title} className="w-16 h-16 rounded-lg object-cover" /><div className="flex-1"><h3 className="text-xs font-bold text-gray-800 line-clamp-1">{ad.title}</h3><div className="text-sm font-extrabold text-gray-900">{fmtRp(ad.price)}</div><div className="text-[11px] text-gray-500 mt-1">{ad.isPriority ? "⚡ Sedang Prioritas" : "Reguler"} • 💬 {(chats[ad.id] || Array.of()).length} Pesan</div></div></div>
                     <div className="grid grid-cols-3 gap-1.5 mt-3 pt-2.5 border-t border-gray-100">
-                      <button onClick={() => setPromoModal({ ad, type: "Sundul Iklan", price: 5000 })} className="py-2 rounded-lg border border-[#0194F3] text-[#0194F3] text-[11px] font-bold">⬆️ Sundul</button>
-                      <button onClick={() => setPromoModal({ ad, type: "Highlight Prioritas", price: 15000 })} className="py-2 rounded-lg bg-[#FF5722] text-white text-[11px] font-bold">⚡ Highlight</button>
+                      <button onClick={() => setPromoModal({ ad, type: "Sundul Iklan", price: 35000 + Math.floor(100 + Math.random() * 899) })} className="py-2 rounded-lg border border-[#0194F3] text-[#0194F3] text-[10px] font-bold">⬆️ Sundul 7Hr (35rb)</button>
+                      <button onClick={() => setPromoModal({ ad, type: "Highlight Prioritas", price: 150000 + Math.floor(100 + Math.random() * 899) })} className="py-2 rounded-lg bg-[#FF5722] text-white text-[10px] font-bold">⚡ Highlight 30Hr (150rb)</button>
                       <button onClick={() => shareAd(ad)} className="py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">📤 Bagikan</button>
                     </div>
                   </div>
@@ -429,17 +429,18 @@ export default function BatamGoApp() {
                 </div>
               </div>
             )}
-            {promoModal && (
+                        {promoModal && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
                 <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3 text-center">
                   <div className="flex justify-between items-center"><h3 className="font-bold text-sm text-gray-800">💳 Pembayaran QRIS {promoModal.type}</h3><button onClick={() => setPromoModal(null)} className="text-gray-400 font-bold">✕</button></div>
-                  <p className="text-xs text-gray-600">Iklan: <b>{promoModal.ad.title}</b></p>
-                  <div className="p-4 bg-gray-50 border-2 border-dashed border-[#0194F3] rounded-2xl mx-auto max-w-[230px]">
-                    <div className="text-xs font-extrabold text-[#0194F3] mb-1">QRIS PT. MANDIRI WAHANA MAKMUR</div>
+                  <p className="text-xs text-gray-600">{promoModal.type === "Sundul Iklan" ? "Otomatis naik 2x sehari (08:00 & 19:30 WIB) selama 7 hari" : "Tampil permanen di baris teratas beranda selama 30 hari"}</p>
+                  <div className="p-3 bg-gray-50 border-2 border-dashed border-[#0194F3] rounded-2xl mx-auto max-w-[260px] space-y-2">
+                    <div className="text-[11px] font-extrabold text-[#0194F3]">QRIS RESMI — TOKO BANG PARDEDE</div>
+                    <img src="/qris.jfif" alt="QRIS Toko Bang Pardede" className="w-52 h-auto object-contain mx-auto rounded-xl bg-white p-1 border border-gray-200" />
                     <div className="text-lg font-black text-gray-900">{fmtRp(promoModal.price)}</div>
-                    <div className="text-[10px] text-gray-500 mt-1">Scan via GoPay / OVO / DANA / M-Banking</div>
+                    <div className="text-[10px] text-amber-700 font-semibold">Transfer sesuai nominal tepat (termasuk 3 digit kode unik) agar aktif otomatis!</div>
                   </div>
-                  <button onClick={() => { const updated = ads.map((a) => a.id === promoModal.ad.id ? { ...a, isPriority: true } : a); setAds(updated); try { localStorage.setItem("batamgo_ads_v3", JSON.stringify(updated)); } catch {} setPromoModal(null); alert("Pembayaran terkonfirmasi! Iklan Anda kini tampil di posisi ⚡ PRIORITAS."); }} className="w-full py-3 rounded-xl bg-[#25D366] text-white font-bold text-xs">✔️ Konfirmasi Pembayaran & Naikkan Iklan</button>
+                  <button onClick={() => { const updated = ads.map((a) => a.id === promoModal.ad.id ? { ...a, isPriority: true, badge: promoModal.type === "Sundul Iklan" ? "SUNDUL 7 HARI" : "HIGHLIGHT 30 HARI" } : a); setAds(updated); try { localStorage.setItem("batamgo_ads_v3", JSON.stringify(updated)); } catch {} setPromoModal(null); alert(`✅ Pembayaran ${fmtRp(promoModal.price)} diterima! Paket ${promoModal.type} aktif otomatis.`); }} className="w-full py-3 rounded-xl bg-[#25D366] text-white font-bold text-xs">✔️ Saya Sudah Transfer — Aktifkan Otomatis</button>
                 </div>
               </div>
             )}
