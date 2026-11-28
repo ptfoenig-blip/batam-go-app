@@ -311,8 +311,6 @@ export default function BatamGoApp() {
                 </div>
               </div>
             )}
-
-            )}
             {showFilter && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
                 <div className="bg-white w-full max-w-md rounded-t-2xl p-5">
