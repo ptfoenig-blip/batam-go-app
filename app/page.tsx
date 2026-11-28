@@ -39,6 +39,12 @@ export default function BatamGoApp() {
   const [regContact, setRegContact] = useState("");
   const [kycDocType, setKycDocType] = useState("KTP Domisili Batam");
   const [pdpConsent, setPdpConsent] = useState(false);
+  const [newCondition, setNewCondition] = useState<"Baru" | "Bekas Mulus" | "Bekas Normal">("Bekas Mulus");
+  const [ownershipProof, setOwnershipProof] = useState("");
+  const [newQuantity, setNewQuantity] = useState("1");
+  const [expiryDays, setExpiryDays] = useState("30");
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [editingAdId, setEditingAdId] = useState<string | null>(null);
   const [showLegal, setShowLegal] = useState<"terms" | "privacy" | null>(null);
   const [lastMsgTime, setLastMsgTime] = useState(0);
   const BANNED_WORDS = Array.of("judi", "slot", "gacor", "narkoba", "sabu", "ganja", "senpi", "senjata api", "ilegal", "selundupan", "palsu", "ijazah palsu", "stnk palsu", "bokep", "porno");
@@ -77,6 +83,8 @@ export default function BatamGoApp() {
 
   const filteredAds = useMemo(() => ads.filter((ad) => {
     if (selectedCategory !== "semua" && ad.category !== selectedCategory) return false;
+        if (ad.moderationStatus && ad.moderationStatus !== "approved") return false;
+    if (ad.availability && !Array.of("Available", "Negotiation", "Reserved").includes(ad.availability)) return false;
     if (selectedDistrict !== "Semua Batam" && ad.district !== selectedDistrict) return false;
     if (ad.distanceKm > maxRadius) return false;
     if (minPrice && ad.price < Number(minPrice)) return false;
@@ -111,22 +119,25 @@ export default function BatamGoApp() {
     if (foundBanned) { alert(`⚠️ Iklan ditolak otomatis karena mengandung kata terlarang ("${foundBanned}").`); return; }
     const price = Number(newPrice.replace(/\D/g, "") || "0");
     if (!newTitle.trim() || price < 1000 || !newDesc.trim()) return;
+    if (!ownershipProof.trim()) { alert("Bukti penguasaan objek wajib diisi (misal: BPKB/STNK, Nota Pembelian, atau Sertifikat)."); return; }
     const imgs = previews.length ? previews : Array.of("/kost.jpg");
     const isFtzCat = newCategory === "otomotif" || newCategory === "elektronik";
     const badge = customTag || (isFtzCat ? (ftzStatus.includes("Khusus") ? "KHUSUS FTZ BATAM" : "RESMI NON-FTZ") : "TERVERIFIKASI");
-    const item: AdItem = {
-      id: Date.now().toString(), title: newTitle.trim().slice(0, 70), price,
+        const item: AdItem = {
+      id: editingAdId || Date.now().toString(), title: newTitle.trim().slice(0, 70), price,
       priceUnit: newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined,
       category: newCategory, district: newDistrict, distanceKm: 0.5, badge,
       sellerName: "Penjual Batam", isVerified: true,
       whatsapp: waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999",
       description: newDesc.trim().slice(0, 600), image: imgs.at(0) || "/kost.jpg", images: imgs, views: 1, waClicks: 0,
+      condition: newCondition, ownershipProof: ownershipProof.trim(), quantity: Math.max(1, Number(newQuantity || "1")),
+      moderationStatus: "approved", availability: "Available",
+      expiresAt: new Date(Date.now() + Number(expiryDays || "30") * 86_400_000).toLocaleDateString("id-ID"),
     };
-    const next = Array.of(item, ...ads); setAds(next);
+    const next = editingAdId ? ads.map((a) => (a.id === editingAdId ? item : a)) : Array.of(item, ...ads);
+    setAds(next);
     try { localStorage.setItem("batamgo_ads_v3", JSON.stringify(next)); } catch {}
-    setNewTitle(""); setNewPrice(""); setNewDesc(""); setPreviews(Array.of()); setAgreedTerms(false); setActiveTab("home");
-  };
-
+    setEditingAdId(null); setNewTitle(""); setNewPrice(""); setNewDesc(""); setOwnershipProof(""); setPreviews(Array.of()); setAgreedTerms(false); setActiveTab("home");
   const sendMsg = (txt?: string) => {
     if (!selectedAd) return;
     if (Date.now() - lastMsgTime < 1500) { alert("Tunggu sebentar sebelum mengirim pesan berikutnya."); return; }
@@ -326,49 +337,105 @@ export default function BatamGoApp() {
                   </div>
                 ) : (
 
-                  <form onSubmit={publishAd} className="bg-white p-5 rounded-2xl shadow-sm space-y-3">
-                    <h2 className="text-lg font-extrabold text-gray-800">Pasang Iklan Baru</h2>
+                                    <form onSubmit={publishAd} className="bg-white p-5 rounded-2xl shadow-sm space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-lg font-extrabold text-gray-800">{editingAdId ? "✏️ Edit Iklan" : "Pasang Iklan Baru"}</h2>
+                      {editingAdId && <button type="button" onClick={() => { setEditingAdId(null); setNewTitle(""); setNewPrice(""); setNewDesc(""); setOwnershipProof(""); }} className="text-xs font-bold text-red-600">Batal Edit</button>}
+                    </div>
                     <div>
                       <div className="flex justify-between items-center mb-1"><label className="text-xs font-bold text-gray-700">Foto Produk (Maks. 4 Foto)</label><span className="text-[11px] font-bold text-[#0194F3]">{previews.length}/4 Foto</span></div>
                       {previews.length < 4 && <input type="file" accept="image/*" multiple onChange={handleFiles} className="w-full border border-gray-300 rounded-xl p-2 text-xs bg-white text-gray-900" />}
                       {previews.length > 0 && <div className="grid grid-cols-4 gap-2 mt-2">{previews.map((s, i) => <div key={i} className="relative aspect-square"><img src={s} alt="Prev" className="w-full h-full object-cover rounded-xl border border-gray-200" /><button type="button" onClick={() => setPreviews((p) => p.filter((_, idx) => idx !== i))} className="absolute -top-1.5 -right-1.5 bg-red-600 text-white w-5 h-5 rounded-full text-[10px] font-bold shadow">✕</button></div>)}</div>}
                     </div>
-                    <div><label className="block text-xs font-bold text-gray-700 mb-1">Kategori</label><select value={newCategory} onChange={(e) => setNewCategory(e.target.value as Exclude<Category, "semua">)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm bg-white text-gray-900"><option value="properti">Properti</option><option value="otomotif">Otomotif</option><option value="elektronik">Elektronik</option><option value="perkakas">Perkakas</option><option value="lainnya">Lainnya</option></select></div> 
-                                     {(newCategory === "otomotif" || newCategory === "elektronik") && (
-                   <div><label className="block text-xs font-bold text-gray-700 mb-1">Status Kepabeanan FTZ Batam</label><select value={ftzStatus} onChange={(e) => setFtzStatus(e.target.value)} className="w-full border border-blue-200 rounded-xl p-2.5 text-xs font-semibold bg-blue-50 text-gray-900"><option value="Resmi Nasional / Non-FTZ">Resmi Nasional / Non-FTZ (Bisa Keluar Batam)</option><option value="Khusus Kawasan FTZ Batam">Khusus Kawasan FTZ Batam (Hanya Pakai di Batam)</option></select></div>
-                 )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className="block text-xs font-bold text-gray-700 mb-1">Kategori</label><select value={newCategory} onChange={(e) => setNewCategory(e.target.value as Exclude<Category, "semua">)} className="w-full border border-gray-300 rounded-xl p-2.5 text-xs bg-white text-gray-900"><option value="properti">Properti</option><option value="otomotif">Otomotif</option><option value="elektronik">Elektronik</option><option value="perkakas">Perkakas</option><option value="lainnya">Lainnya</option></select></div>
+                      <div><label className="block text-xs font-bold text-gray-700 mb-1">Kondisi Barang</label><select value={newCondition} onChange={(e) => setNewCondition(e.target.value as typeof newCondition)} className="w-full border border-gray-300 rounded-xl p-2.5 text-xs bg-white text-gray-900"><option value="Bekas Mulus">Bekas Mulus</option><option value="Baru">Baru</option><option value="Bekas Normal">Bekas Normal</option></select></div>
+                    </div>
+                    {(newCategory === "otomotif" || newCategory === "elektronik") && (
+                      <div><label className="block text-xs font-bold text-gray-700 mb-1">Status Kepabeanan FTZ Batam</label><select value={ftzStatus} onChange={(e) => setFtzStatus(e.target.value)} className="w-full border border-blue-200 rounded-xl p-2.5 text-xs font-semibold bg-blue-50 text-gray-900"><option value="Resmi Nasional / Non-FTZ">Resmi Nasional / Non-FTZ (Bisa Keluar Batam)</option><option value="Khusus Kawasan FTZ Batam">Khusus Kawasan FTZ Batam (Hanya Pakai di Batam)</option></select></div>
+                    )}
                     <div><div className="flex justify-between items-center mb-1"><label className="text-xs font-bold text-gray-700">Judul Iklan</label><span className="text-[11px] text-gray-400">{newTitle.length}/70</span></div><input type="text" required maxLength={70} value={newTitle} onChange={(e) => setNewTitle(e.target.value.slice(0, 70))} placeholder="Contoh: Kost AC Sukajadi Dekat Kepri Mall" className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
-                                
-                    <div><label className="block text-xs font-bold text-gray-700 mb-1">Lokasi Kecamatan</label><select value={newDistrict} onChange={(e) => setNewDistrict(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm bg-white text-gray-900">{BATAM_DISTRICTS.filter((d) => d !== "Semua Batam").map((d) => <option key={d} value={d}>{d}</option>)}</select></div>
-                    <div><div className="flex justify-between items-center mb-1"><label className="text-xs font-bold text-gray-700">Deskripsi Iklan</label><span className="text-[11px] text-gray-400">{newDesc.length}/600</span></div><textarea rows={4} required maxLength={600} value={newDesc} onChange={(e) => setNewDesc(e.target.value.slice(0, 600))} placeholder="Jelaskan kondisi barang, fasilitas kost, status surat FTZ/SHM, dll..." className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
-                                        <label className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed cursor-pointer">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className="block text-xs font-bold text-gray-700 mb-1">Harga (Rp)</label><input type="text" required value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="1500000" className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
+                      <div><label className="block text-xs font-bold text-gray-700 mb-1">Stok / Quantity</label><input type="number" min={1} value={newQuantity} onChange={(e) => setNewQuantity(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className="block text-xs font-bold text-gray-700 mb-1">Lokasi Kecamatan</label><select value={newDistrict} onChange={(e) => setNewDistrict(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 text-xs bg-white text-gray-900">{BATAM_DISTRICTS.filter((d) => d !== "Semua Batam").map((d) => <option key={d} value={d}>{d}</option>)}</select></div>
+                      <div><label className="block text-xs font-bold text-gray-700 mb-1">Auto-Expiry Tayang</label><select value={expiryDays} onChange={(e) => setExpiryDays(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 text-xs bg-white text-gray-900"><option value="14">14 Hari</option><option value="30">30 Hari (Default)</option><option value="60">60 Hari</option></select></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className="block text-xs font-bold text-gray-700 mb-1">Bukti Penguasaan Objek *</label><input type="text" required value={ownershipProof} onChange={(e) => setOwnershipProof(e.target.value)} placeholder="BPKB/STNK, Nota, SHM" className="w-full border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900" /></div>
+                      <div><label className="block text-xs font-bold text-gray-700 mb-1">Tag Label Foto</label><select value={customTag} onChange={(e) => setCustomTag(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 text-xs bg-white text-gray-900"><option value="">Otomatis (FTZ/Verified)</option><option value="MULUS 99%">MULUS 99%</option><option value="NEGO HALUS">NEGO HALUS</option><option value="SHM / LENGKAP">SHM / LENGKAP</option><option value="QUICK SALE / BU">QUICK SALE / BU</option></select></div>
+                    </div>
+                    <div><div className="flex justify-between items-center mb-1"><label className="text-xs font-bold text-gray-700">Deskripsi Iklan</label><span className="text-[11px] text-gray-400">{newDesc.length}/600</span></div><textarea rows={3} required maxLength={600} value={newDesc} onChange={(e) => setNewDesc(e.target.value.slice(0, 600))} placeholder="Jelaskan kondisi barang, fasilitas kost, status surat FTZ/SHM, dll..." className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
+                    <label className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed cursor-pointer">
                       <input type="checkbox" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} className="mt-0.5 accent-[#FF5722]" />
                       <span>Saya menyatakan barang ini halal/legal sesuai hukum RI & aturan FTZ Batam, serta menyetujui <b>Syarat & Ketentuan</b> bahwa <b>BATAM GO</b> tidak bertanggung jawab atas transaksi di luar sepengetahuan admin.</span>
                     </label>
-
-                    <button type="submit" className="w-full py-3.5 rounded-xl bg-[#FF5722] text-white font-bold text-sm shadow">Tayangkan Iklan Sekarang</button>
+                    <button type="button" onClick={() => setShowPreviewModal(true)} className="w-full py-2.5 rounded-xl border border-[#0194F3] text-[#0194F3] font-bold text-xs">👁️ Preview Tampilan Iklan</button>
+                    <button type="submit" className="w-full py-3.5 rounded-xl bg-[#FF5722] text-white font-bold text-sm shadow">{editingAdId ? "Simpan Perubahan Iklan" : "Tayangkan Iklan Sekarang"}</button>
                   </form>
                 )}
               </div>
             )}
-                        {activeTab === "ads" && (
+            {activeTab === "ads" && (
               <div className="p-4 space-y-3">
                 <div className="bg-[#0194F3] text-white p-4 rounded-2xl flex justify-between items-center">
-                  <div><h2 className="font-extrabold text-base">Iklan Saya & Promosi</h2><p className="text-xs text-blue-100">Tingkatkan penjualan UMKM di Batam</p></div>
+                  <div><h2 className="font-extrabold text-base">Iklan Saya & Lifecycle</h2><p className="text-xs text-blue-100">Kelola status barang & promosi UMKM Batam</p></div>
                   <button onClick={() => setShowInbox(true)} className="bg-white text-[#0194F3] px-3 py-1.5 rounded-xl text-xs font-extrabold shadow-sm">💬 Inbox ({Object.keys(chats).length})</button>
                 </div>
-                {ads.slice(0, 3).map((ad) => (
-                  <div key={ad.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                    <div className="flex gap-3"><img src={ad.image} alt={ad.title} className="w-16 h-16 rounded-lg object-cover" /><div className="flex-1"><h3 className="text-xs font-bold text-gray-800 line-clamp-1">{ad.title}</h3><div className="text-sm font-extrabold text-gray-900">{fmtRp(ad.price)}</div><div className="text-[11px] text-gray-500 mt-1">{ad.isPriority ? "⚡ Sedang Prioritas" : "Reguler"} • 💬 {(chats[ad.id] || Array.of()).length} Pesan</div></div></div>
-                    <div className="grid grid-cols-3 gap-1.5 mt-3 pt-2.5 border-t border-gray-100">
-                      <button onClick={() => setPromoModal({ ad, type: "Sundul Iklan", price: 35000 + Math.floor(100 + Math.random() * 899) })} className="py-2 rounded-lg border border-[#0194F3] text-[#0194F3] text-[10px] font-bold">⬆️ Sundul 7Hr (35rb)</button>
-                      <button onClick={() => setPromoModal({ ad, type: "Highlight Prioritas", price: 150000 + Math.floor(100 + Math.random() * 899) })} className="py-2 rounded-lg bg-[#FF5722] text-white text-[10px] font-bold">⚡ Highlight 30Hr (150rb)</button>
-                      <button onClick={() => shareAd(ad)} className="py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">📤 Bagikan</button>
+                {ads.slice(0, 5).map((ad) => {
+                  const avail = ad.availability || "Available";
+                  const mod = ad.moderationStatus || "approved";
+                  const updateAdState = (patch: Partial<AdItem>) => {
+                    const next = ads.map((item) => (item.id === ad.id ? { ...item, ...patch } : item));
+                    setAds(next);
+                    try { localStorage.setItem("batamgo_ads_v3", JSON.stringify(next)); } catch {}
+                  };
+                  return (
+                    <div key={ad.id} className={`bg-white p-3 rounded-xl shadow-sm border ${mod === "deleted" ? "border-red-300 bg-red-50/40" : "border-gray-100"}`}>
+                      <div className="flex gap-3">
+                        <img src={ad.image} alt={ad.title} className="w-16 h-16 rounded-lg object-cover" />
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start gap-1">
+                            <h3 className="text-xs font-bold text-gray-800 line-clamp-1">{ad.title}</h3>
+                            <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${avail === "Sold" ? "bg-red-100 text-red-700" : avail === "Reserved" || avail === "Negotiation" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-700"}`}>{avail}</span>
+                          </div>
+                          <div className="text-sm font-extrabold text-gray-900">{fmtRp(ad.price)} <span className="text-[10px] font-normal text-gray-500">• Stok: {ad.quantity || 1}</span></div>
+                          <div className="text-[10px] text-gray-500 mt-0.5">Status: <b>{mod}</b> • Exp: {ad.expiresAt || "30 Hari"}</div>
+                        </div>
+                      </div>
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between gap-2 text-[11px]">
+                        <span className="font-bold text-gray-600">Ketersediaan:</span>
+                        <select value={avail} onChange={(e) => updateAdState({ availability: e.target.value as AdItem["availability"] })} className="border border-gray-300 rounded-lg px-2 py-1 text-[11px] bg-white text-gray-900 font-semibold">
+                          <option value="Available">Available (Tersedia)</option>
+                          <option value="Negotiation">Negotiation (Nego)</option>
+                          <option value="Reserved">Reserved (Booked)</option>
+                          <option value="Sold">Sold (Terjual)</option>
+                          <option value="Expired">Expired (Kadaluarsa)</option>
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1 mt-2 text-[10px] font-bold">
+                        <button onClick={() => { setEditingAdId(ad.id); setNewTitle(ad.title); setNewPrice(String(ad.price)); setNewDesc(ad.description); setNewCategory(ad.category); setNewDistrict(ad.district); setOwnershipProof(ad.ownershipProof || "Bukti Terlampir"); setVerifyStatus("Verified"); setIsVerified(true); setActiveTab("sell"); }} className="py-1.5 rounded bg-gray-100 text-gray-800">✏️ Edit</button>
+                        <button onClick={() => updateAdState({ moderationStatus: mod === "paused" ? "approved" : "paused" })} className="py-1.5 rounded bg-amber-50 text-amber-800">{mod === "paused" ? "▶️ Aktif" : "⏸️ Pause"}</button>
+                        <button onClick={() => updateAdState({ moderationStatus: "approved", availability: "Available", expiresAt: new Date(Date.now() + 30 * 86_400_000).toLocaleDateString("id-ID") })} className="py-1.5 rounded bg-blue-50 text-[#0194F3]">🔄 Renew</button>
+                        {mod === "deleted" ? (
+                          <button onClick={() => updateAdState({ moderationStatus: "approved" })} className="py-1.5 rounded bg-emerald-600 text-white">♻️ Restore</button>
+                        ) : (
+                          <button onClick={() => updateAdState({ moderationStatus: "deleted" })} className="py-1.5 rounded bg-red-50 text-red-600">🗑️ Hapus</button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 mt-2 pt-2 border-t border-gray-100">
+                        <button onClick={() => setPromoModal({ ad, type: "Sundul Iklan", price: 35000 + Math.floor(100 + Math.random() * 899) })} className="py-2 rounded-lg border border-[#0194F3] text-[#0194F3] text-[10px] font-bold">⬆️ Sundul 7Hr (35rb)</button>
+                        <button onClick={() => setPromoModal({ ad, type: "Highlight Prioritas", price: 150000 + Math.floor(100 + Math.random() * 899) })} className="py-2 rounded-lg bg-[#FF5722] text-white text-[10px] font-bold">⚡ Highlight 30Hr (150rb)</button>
+                        <button onClick={() => shareAd(ad)} className="py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">📤 Bagikan</button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
+
             {activeTab === "account" && (
               <div className="p-4 space-y-3">
                 <div className="bg-white p-5 rounded-2xl shadow-sm text-center">
@@ -397,6 +464,24 @@ export default function BatamGoApp() {
                 </div>
               </div>
             )}
+                       {showPreviewModal && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3">
+                  <div className="flex justify-between items-center"><h3 className="font-bold text-sm text-gray-800">👁️ Preview Iklan Sebelum Tayang</h3><button onClick={() => setShowPreviewModal(false)} className="text-gray-400 font-bold">✕</button></div>
+                  <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                    <img src={previews.at(0) || "/kost.jpg"} alt="Preview" className="w-full h-44 object-cover" />
+                    <div className="p-3 space-y-1">
+                      <div className="flex justify-between items-center"><span className="text-[10px] font-bold bg-blue-50 text-[#0194F3] px-2 py-0.5 rounded">{newCondition} • Stok {newQuantity || 1}</span><span className="text-[10px] text-gray-500">{newDistrict}</span></div>
+                      <div className="font-bold text-sm text-gray-900">{newTitle || "Judul Iklan Anda"}</div>
+                      <div className="font-black text-base text-[#FF5722]">{fmtRp(Number(newPrice.replace(/\D/g, "") || "0"))}</div>
+                      <p className="text-xs text-gray-600 line-clamp-3">{newDesc || "Deskripsi iklan akan tampil di sini..."}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowPreviewModal(false)} className="w-full py-2.5 rounded-xl bg-gray-900 text-white font-bold text-xs">Tutup Preview</button>
+                </div>
+              </div>
+            )}
+
             {showLegal && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
                 <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3 max-h-[80vh] overflow-y-auto">
