@@ -2,6 +2,12 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Category, AdItem, INITIAL_ADS, BATAM_DISTRICTS } from "./data";
 
+interface ChatMessage {
+  sender: "buyer" | "seller";
+  text: string;
+  time: string;
+}
+
 export default function BatamGoApp() {
   const [activeTab, setActiveTab] = useState<"home" | "nearby" | "sell" | "ads" | "account">("home");
   const [ads, setAds] = useState<AdItem[]>(INITIAL_ADS);
@@ -14,8 +20,16 @@ export default function BatamGoApp() {
   const [minPrice, setMinPrice] = useState<string>("");
   const [maxPrice, setMaxPrice] = useState<string>("");
   const [showFilterSheet, setShowFilterSheet] = useState(false);
-  const [showNegoSheet, setShowNegoSheet] = useState(false);
-  const [negoOffer, setNegoOffer] = useState<string>("");
+
+  // State Chat In-App & Laporkan Iklan
+  const [showChatSheet, setShowChatSheet] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({});
+  const [showReportSheet, setShowReportSheet] = useState(false);
+  const [reportReason, setReportReason] = useState("Indikasi Penipuan / Minta Transfer DP");
+  const [reportNote, setReportNote] = useState("");
+
+  // State Verifikasi & Form Jual
   const [isSellerVerified, setIsSellerVerified] = useState(false);
   const [waNumber, setWaNumber] = useState("");
   const [otpInput, setOtpInput] = useState("");
@@ -30,11 +44,13 @@ export default function BatamGoApp() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("batamgo_ads_v2");
+      const saved = localStorage.getItem("batamgo_ads_v3");
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) setAds(parsed);
       }
+      const savedChats = localStorage.getItem("batamgo_chats_v1");
+      if (savedChats) setChatHistory(JSON.parse(savedChats));
     } catch {}
   }, []);
 
@@ -122,7 +138,7 @@ export default function BatamGoApp() {
       isVerified: true,
       whatsapp: sellerWa,
       description: newDesc.trim().slice(0, 600),
-      image: finalImages[0],
+      image: finalImages.at(0) || "/kost.jpg",
       images: finalImages,
       views: 1,
       waClicks: 0,
@@ -130,7 +146,7 @@ export default function BatamGoApp() {
     const updatedAds = [created, ...ads];
     setAds(updatedAds);
     try {
-      localStorage.setItem("batamgo_ads_v2", JSON.stringify(updatedAds));
+      localStorage.setItem("batamgo_ads_v3", JSON.stringify(updatedAds));
     } catch {}
     setIsUploading(false);
     setNewTitle("");
@@ -140,30 +156,46 @@ export default function BatamGoApp() {
     setActiveTab("home");
   };
 
-  const openWhatsApp = (ad: AdItem, customOffer?: string) => {
-    const offerNum = customOffer ? parseDigits(customOffer) : 0;
-    const text = offerNum > 0
-      ? `Halo, saya lihat iklan *${ad.title}* di BATAM GO. Apakah boleh nego di harga *Rp ${offerNum.toLocaleString("id-ID")}*?`
-      : `Halo, saya tertarik dengan iklan *${ad.title}* (${formatRupiah(ad.price)}) di BATAM GO. Apakah masih tersedia?`;
-    window.open(`https://wa.me{ad.whatsapp}?text=${encodeURIComponent(text)}`, "_blank");
+  const sendInAppMessage = (customText?: string) => {
+    if (!selectedAd) return;
+    const textToSend = (customText ?? chatInput).trim();
+    if (!textToSend) return;
+    const now = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    const prevMsgs = chatHistory[selectedAd.id] || [];
+    const nextMsgs: ChatMessage[] = [...prevMsgs, { sender: "buyer", text: textToSend, time: now }];
+    const updated = { ...chatHistory, [selectedAd.id]: nextMsgs };
+    setChatHistory(updated);
+    if (!customText) setChatInput("");
+    try {
+      localStorage.setItem("batamgo_chats_v1", JSON.stringify(updated));
+    } catch {}
+  };
+
+  const handleReportSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowReportSheet(false);
+    setReportNote("");
+    alert("Terima kasih! Laporan Anda telah diteruskan ke Tim Keamanan BATAM GO untuk segera ditinjau.");
   };
 
   const detailPhotos = selectedAd ? (selectedAd.images && selectedAd.images.length > 0 ? selectedAd.images : [selectedAd.image]) : [];
+  const currentAdMessages = selectedAd ? chatHistory[selectedAd.id] || [] : [];
 
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center select-none">
       <div className="w-full max-w-md bg-[#F4F6F9] min-h-screen pb-24 relative shadow-xl overflow-x-hidden">
         {selectedAd ? (
-          <div className="bg-white min-h-screen pb-24">
+          <div className="bg-white min-h-screen pb-28">
             <div className="relative">
-              <img src={detailPhotos[activePhotoIdx] || selectedAd.image} alt={selectedAd.title} className="w-full h-72 object-cover" />
+              <img src={detailPhotos.at(activePhotoIdx) || selectedAd.image} alt={selectedAd.title} className="w-full h-72 object-cover" />
               <button onClick={() => { setSelectedAd(null); setActivePhotoIdx(0); }} className="absolute top-4 left-4 bg-white/90 px-3 py-1.5 rounded-full text-sm font-bold shadow text-gray-800">← Kembali</button>
+              <button onClick={() => setShowReportSheet(true)} className="absolute top-4 right-4 bg-white/90 px-3 py-1.5 rounded-full text-xs font-bold shadow text-red-600">🚩 Laporkan</button>
               <span className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full">{activePhotoIdx + 1}/{detailPhotos.length} Foto</span>
             </div>
             {detailPhotos.length > 1 && (
               <div className="flex gap-2 px-4 pt-3 overflow-x-auto">
                 {detailPhotos.map((src, idx) => (
-                  <img key={idx} src={src} alt={`Foto ${idx + 1}`} onClick={() => setActivePhotoIdx(idx)} className={`w-14 h-14 object-cover rounded-lg cursor-pointer border-2 ${activePhotoIdx === idx ? "border-[#0194F3]" : "border-transparent opacity-70"}`} />
+                  <img key={idx} src={src} alt="Thumb" onClick={() => setActivePhotoIdx(idx)} className={`w-14 h-14 object-cover rounded-lg cursor-pointer border-2 ${activePhotoIdx === idx ? "border-[#0194F3]" : "border-transparent opacity-70"}`} />
                 ))}
               </div>
             )}
@@ -172,36 +204,76 @@ export default function BatamGoApp() {
               <div className="text-2xl font-extrabold text-gray-900">{formatRupiah(selectedAd.price)} {selectedAd.priceUnit && <span className="text-sm font-normal text-gray-500">{selectedAd.priceUnit}</span>}</div>
               <h1 className="text-lg font-semibold text-gray-800 mt-1">{selectedAd.title}</h1>
               <p className="text-xs text-gray-500 mt-2">📍 {selectedAd.district} • <span className="text-[#0194F3] font-semibold">{selectedAd.distanceKm} km dari Anda</span></p>
-              <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#0194F3] text-white flex items-center justify-center font-bold">{selectedAd.sellerName.charAt(0)}</div>
-                <div>
-                  <div className="text-sm font-bold text-gray-800">{selectedAd.sellerName} {selectedAd.isVerified && <span className="text-xs text-[#0194F3]">✔️</span>}</div>
-                  <div className="text-[11px] text-gray-500">Nomor WhatsApp Terverifikasi</div>
+              <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+            <div className="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-200 p-3 flex gap-2.5 z-30">
+              <button onClick={() => setShowReportSheet(true)} className="px-3.5 py-3 rounded-xl border border-red-200 text-red-600 font-bold text-xs">🚩 Laporkan</button>
+              <button onClick={() => setShowChatSheet(true)} className="flex-1 py-3 rounded-xl bg-[#0194F3] text-white font-bold text-sm shadow-sm">💬 Hubungi Penjual (Chat)</button>
+            </div>
+
+            {showChatSheet && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                <div className="bg-white w-full max-w-md rounded-t-2xl flex flex-col max-h-[85vh]">
+                  <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+                    <div>
+                      <h3 className="font-bold text-sm text-gray-800">💬 Chat dengan {selectedAd.sellerName}</h3>
+                      <p className="text-[11px] text-gray-500 truncate max-w-[240px]">{selectedAd.title}</p>
+                    </div>
+                    <button onClick={() => setShowChatSheet(false)} className="text-gray-400 text-sm font-bold px-2">✕</button>
+                  </div>
+                  <div className="bg-amber-50 px-4 py-2 text-[11px] text-amber-800 border-b border-amber-100">
+                    🛡️ <b>Tips Aman:</b> Nomor WhatsApp penjual dirahasiakan demi keamanan. Gunakan chat ini & lakukan COD di tempat ramai.
+                  </div>
+                  <div className="p-4 overflow-y-auto flex-1 space-y-2.5 min-h-[180px] bg-gray-50">
+                    {currentAdMessages.length === 0 ? (
+                      <p className="text-center text-xs text-gray-400 my-8">Mulai obrolan dengan penjual di bawah ini...</p>
+                    ) : (
+                      currentAdMessages.map((m, i) => (
+                        <div key={i} className={`flex flex-col ${m.sender === "buyer" ? "items-end" : "items-start"}`}>
+                          <div className={`px-3.5 py-2 rounded-2xl text-xs max-w-[80%] ${m.sender === "buyer" ? "bg-[#0194F3] text-white rounded-br-none" : "bg-white text-gray-800 border border-gray-200 rounded-bl-none"}`}>
+                            {m.text}
+                          </div>
+                          <span className="text-[9px] text-gray-400 mt-0.5 px-1">{m.time}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="px-3 pt-2 flex gap-1.5 overflow-x-auto bg-white">
+                    <button type="button" onClick={() => sendInAppMessage("Halo, apakah barang ini masih tersedia?")} className="text-[11px] bg-blue-50 text-[#0194F3] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">Masih tersedia?</button>
+                    <button type="button" onClick={() => sendInAppMessage("Bisa ketemuan / COD di daerah mana ya?")} className="text-[11px] bg-blue-50 text-[#0194F3] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">Bisa COD di mana?</button>
+                    <button type="button" onClick={() => sendInAppMessage("Apakah harganya masih bisa nego?")} className="text-[11px] bg-blue-50 text-[#0194F3] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">Boleh nego?</button>
+                  </div>
+                  <div className="p-3 bg-white border-t border-gray-100 flex gap-2">
+                    <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendInAppMessage()} placeholder="Tulis pesan ke penjual..." className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-xs text-gray-900 outline-none" />
+                    <button type="button" onClick={() => sendInAppMessage()} className="bg-[#0194F3] text-white font-bold text-xs px-4 rounded-xl">Kirim</button>
+                  </div>
                 </div>
               </div>
-              <div className="mt-5"><h2 className="text-sm font-bold text-gray-800 mb-1.5">Deskripsi</h2><p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line select-text">{selectedAd.description}</p></div>
-            </div>
-            <div className="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-200 p-3 flex gap-2.5 z-30">
-              {selectedAd.category === "properti" ? (
-                <a href={`tel:+${selectedAd.whatsapp}`} className="flex-1 py-3 rounded-xl border border-[#0194F3] text-[#0194F3] font-bold text-sm text-center">📞 Telepon</a>
-              ) : (
-                <button onClick={() => { setNegoOffer(Math.floor(selectedAd.price * 0.9).toLocaleString("id-ID")); setShowNegoSheet(true); }} className="flex-1 py-3 rounded-xl border border-[#FF5722] text-[#FF5722] font-bold text-sm">🤝 Tawar / Nego</button>
-              )}
-              <button onClick={() => openWhatsApp(selectedAd)} className="flex-[1.5] py-3 rounded-xl bg-[#25D366] text-white font-bold text-sm shadow-sm">💬 Chat WhatsApp</button>
-            </div>
-            {showNegoSheet && (
+            )}
+
+            {showReportSheet && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-                <div className="bg-white w-full max-w-md rounded-t-2xl p-5">
-                  <div className="flex justify-between items-center mb-3"><h3 className="font-bold text-gray-800">Ajukan Penawaran</h3><button onClick={() => setShowNegoSheet(false)} className="text-gray-400 text-sm">Tutup</button></div>
-                  <p className="text-xs text-gray-500 mb-3">Harga penjual: {formatRupiah(selectedAd.price)}</p>
-                  <div className="flex gap-2 mb-3">
-                    <button onClick={() => setNegoOffer(Math.floor(selectedAd.price * 0.95).toLocaleString("id-ID"))} className="flex-1 py-2 text-xs font-semibold bg-orange-50 text-[#FF5722] rounded-lg border border-orange-200">{formatRupiah(Math.floor(selectedAd.price * 0.95))}</button>
-                    <button onClick={() => setNegoOffer(Math.floor(selectedAd.price * 0.9).toLocaleString("id-ID"))} className="flex-1 py-2 text-xs font-semibold bg-orange-50 text-[#FF5722] rounded-lg border border-orange-200">{formatRupiah(Math.floor(selectedAd.price * 0.9))}</button>
-                    <button onClick={() => setNegoOffer(Math.floor(selectedAd.price * 0.85).toLocaleString("id-ID"))} className="flex-1 py-2 text-xs font-semibold bg-orange-50 text-[#FF5722] rounded-lg border border-orange-200">{formatRupiah(Math.floor(selectedAd.price * 0.85))}</button>
+                <form onSubmit={handleReportSubmit} className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-gray-800">🚩 Laporkan Iklan Mencurigakan</h3>
+                    <button type="button" onClick={() => setShowReportSheet(false)} className="text-gray-400 text-sm font-bold">✕</button>
                   </div>
-                  <input type="text" inputMode="numeric" value={negoOffer} onChange={(e) => setNegoOffer(formatThousands(e.target.value))} className="w-full border border-gray-300 rounded-xl p-3 text-sm font-bold mb-4 text-gray-900" placeholder="Contoh: 12.280.000" />
-                  <button onClick={() => { setShowNegoSheet(false); openWhatsApp(selectedAd, negoOffer); }} className="w-full py-3 rounded-xl bg-[#25D366] text-white font-bold text-sm">Kirim Tawaran via WhatsApp</button>
-                </div>
+                  <p className="text-xs text-gray-500">Bantu jaga komunitas Batam tetap aman dari penipuan.</p>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Alasan Pelaporan</label>
+                    <select value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 text-xs bg-white text-gray-900">
+                      <option value="Indikasi Penipuan / Minta Transfer DP">Indikasi Penipuan / Minta Transfer DP</option>
+                      <option value="Barang Palsu / Terlarang">Barang Palsu / Terlarang</option>
+                      <option value="Harga Tidak Masuk Akal">Harga Tidak Masuk Akal</option>
+                      <option value="Spam / Iklan Duplikat">Spam / Iklan Duplikat</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Keterangan Tambahan (Opsional)</label>
+                    <textarea rows={3} value={reportNote} onChange={(e) => setReportNote(e.target.value)} placeholder="Ceritakan detail kejanggalan iklan ini..." className="w-full border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900" />
+                  </div>
+                  <button type="submit" className="w-full py-3 rounded-xl bg-red-600 text-white font-bold text-xs">Kirim Laporan ke Admin</button>
+                </form>
               </div>
             )}
           </div>
@@ -225,123 +297,14 @@ export default function BatamGoApp() {
                   <span>🚚 <b>Jasa Angkut & Pindahan Batam</b> - Mulai 100rb</span>
                   <span className="bg-white text-blue-600 font-bold px-2 py-0.5 rounded">Info</span>
                 </div>
-                                <div className="bg-white mx-3 mt-3 p-3 rounded-xl shadow-sm grid grid-cols-5 gap-1 text-center">
+                <div className="bg-white mx-3 mt-3 p-3 rounded-xl shadow-sm grid grid-cols-5 gap-1 text-center">
                   <button onClick={() => setSelectedCategory(selectedCategory === "properti" ? "semua" : "properti")} className={`flex flex-col items-center p-1.5 rounded-xl ${selectedCategory === "properti" ? "bg-blue-50 ring-1 ring-[#0194F3]" : ""}`}><span className="text-xl mb-1">🏠</span><span className="text-[10px] font-semibold text-gray-700 leading-tight">Properti</span></button>
                   <button onClick={() => setSelectedCategory(selectedCategory === "otomotif" ? "semua" : "otomotif")} className={`flex flex-col items-center p-1.5 rounded-xl ${selectedCategory === "otomotif" ? "bg-blue-50 ring-1 ring-[#0194F3]" : ""}`}><span className="text-xl mb-1">🏍️</span><span className="text-[10px] font-semibold text-gray-700 leading-tight">Otomotif</span></button>
                   <button onClick={() => setSelectedCategory(selectedCategory === "elektronik" ? "semua" : "elektronik")} className={`flex flex-col items-center p-1.5 rounded-xl ${selectedCategory === "elektronik" ? "bg-blue-50 ring-1 ring-[#0194F3]" : ""}`}><span className="text-xl mb-1">📺</span><span className="text-[10px] font-semibold text-gray-700 leading-tight">Elektronik</span></button>
                   <button onClick={() => setSelectedCategory(selectedCategory === "perkakas" ? "semua" : "perkakas")} className={`flex flex-col items-center p-1.5 rounded-xl ${selectedCategory === "perkakas" ? "bg-blue-50 ring-1 ring-[#0194F3]" : ""}`}><span className="text-xl mb-1">🛠️</span><span className="text-[10px] font-semibold text-gray-700 leading-tight">Perkakas</span></button>
                   <button onClick={() => setSelectedCategory(selectedCategory === "lainnya" ? "semua" : "lainnya")} className={`flex flex-col items-center p-1.5 rounded-xl ${selectedCategory === "lainnya" ? "bg-blue-50 ring-1 ring-[#0194F3]" : ""}`}><span className="text-xl mb-1">📦</span><span className="text-[10px] font-semibold text-gray-700 leading-tight">Lainnya</span></button>
                 </div>
-                <div className="px-3 mt-3">
-                  <h2 className="text-xs font-extrabold text-gray-700 uppercase tracking-wider mb-2">⚡ Terdekat di Sekitarmu ({filteredAds.length})</h2>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {filteredAds.map((ad) => (
-                      <div key={ad.id} onClick={() => { setSelectedAd(ad); setActivePhotoIdx(0); }} className={`bg-white rounded-xl overflow-hidden shadow-sm border cursor-pointer flex flex-col justify-between ${ad.isPriority ? "border-amber-400 ring-1 ring-amber-300" : "border-gray-100"}`}>
-                        <div>
-                          <div className="relative aspect-square bg-gray-200">
-                            <img src={ad.image} alt={ad.title} className="w-full h-full object-cover" />
-                            {ad.isPriority ? <span className="absolute top-1.5 left-1.5 bg-amber-400 text-gray-900 text-[10px] font-extrabold px-1.5 py-0.5 rounded">⚡ PRIORITAS</span> : ad.badge && <span className="absolute top-1.5 left-1.5 bg-[#0194F3] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">{ad.badge}</span>}
-                            {ad.images && ad.images.length > 1 && <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">📷 {ad.images.length}</span>}
-                          </div>
-                          <div className="p-2.5">
-                            <h3 className="text-xs font-medium text-gray-800 line-clamp-2 leading-snug">{ad.title}</h3>
-                            <div className="text-sm font-extrabold text-gray-900 mt-1">{formatRupiah(ad.price)}{ad.priceUnit && <span className="text-[10px] font-normal text-gray-500">{ad.priceUnit}</span>}</div>
-                          </div>
-                        </div>
-                        <div className="px-2.5 pb-2.5 pt-1 border-t border-gray-50 text-[10px] text-gray-500"><span className="truncate block">📍 {ad.distanceKm}km • {ad.district.split(",")}</span></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-                        {activeTab === "sell" && (
-              <div className="p-4">
-                {!isSellerVerified ? (
-                  <div className="bg-white p-5 rounded-2xl shadow-sm">
-                    <h2 className="text-lg font-extrabold text-gray-800 mb-1">Verifikasi Penjual</h2>
-                    <p className="text-xs text-gray-500 mb-4">Untuk mencegah akun palsu di Batam, wajib verifikasi nomor WhatsApp aktif Anda satu kali.</p>
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800 font-semibold mb-4">✔️ Akun Google Terhubung</div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Nomor WhatsApp Aktif</label>
-                    <div className="flex gap-2 mb-3">
-                      <span className="bg-gray-100 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600">+62</span>
-                      <input type="tel" value={waNumber} onChange={(e) => setWaNumber(e.target.value)} placeholder="8127000XXXX" className="flex-1 border border-gray-300 rounded-xl px-3 text-sm text-gray-900" />
-                    </div>
-                    {!otpSent ? (
-                      <button onClick={() => waNumber.length >= 9 && setOtpSent(true)} className="w-full py-3 rounded-xl bg-[#0194F3] text-white font-bold text-sm">Kirim Kode OTP WhatsApp</button>
-                    ) : (
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">Masukkan 4 Digit Kode OTP</label>
-                        <input type="text" maxLength={4} value={otpInput} onChange={(e) => setOtpInput(e.target.value)} placeholder="Contoh: 1234" className="w-full border border-gray-300 rounded-xl p-3 text-center font-bold tracking-widest mb-3 text-gray-900" />
-                        <button onClick={() => otpInput.length === 4 && setIsSellerVerified(true)} className="w-full py-3 rounded-xl bg-[#FF5722] text-white font-bold text-sm">Verifikasi & Lanjut Pasang Iklan</button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <form onSubmit={handlePublishAd} className="bg-white p-5 rounded-2xl shadow-sm space-y-3">
-                    <h2 className="text-lg font-extrabold text-gray-800">Pasang Iklan Baru</h2>
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-xs font-bold text-gray-700">Foto Produk (Maks. 4 Foto)</label>
-                        <span className="text-[11px] font-bold text-[#0194F3]">{photoPreviews.length}/4 Foto</span>
-                      </div>
-                      {photoPreviews.length < 4 && (
-                        <input type="file" accept="image/*" multiple onChange={handleFilesChange} className="w-full border border-gray-300 rounded-xl p-2 text-xs bg-white text-gray-900" />
-                      )}
-                      {photoPreviews.length > 0 && (
-                        <div className="grid grid-cols-4 gap-2 mt-2">
-                          {photoPreviews.map((src, idx) => (
-                            <div key={idx} className="relative aspect-square">
-                              <img src={src} alt="Preview" className="w-full h-full object-cover rounded-xl border border-gray-200" />
-                              <button type="button" onClick={() => setPhotoPreviews((prev) => prev.filter((_, i) => i !== idx))} className="absolute -top-1.5 -right-1.5 bg-red-600 text-white w-5 h-5 rounded-full text-[10px] font-bold shadow">✕</button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Kategori</label>
-                      <select value={newCategory} onChange={(e) => setNewCategory(e.target.value as Exclude<Category, "semua">)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm bg-white text-gray-900">
-                        <option value="properti">Properti & Kost</option>
-                        <option value="otomotif">Otomotif</option>
-                        <option value="elektronik">Elektronik</option>
-                        <option value="perkakas">Perkakas Rumah Tangga</option>
-                        <option value="lainnya">Lainnya</option>
-                      </select>
-                    </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-xs font-bold text-gray-700">Judul Iklan</label>
-                        <span className={`text-[11px] font-semibold ${newTitle.length >= 65 ? "text-red-500" : "text-gray-400"}`}>{newTitle.length}/70</span>
-                      </div>
-                      <input type="text" required maxLength={70} value={newTitle} onChange={(e) => setNewTitle(e.target.value.slice(0, 70))} placeholder="Contoh: Kost AC Sukajadi Dekat Kepri Mall" className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Harga (Rp)</label>
-                      <div className="flex items-center border border-gray-300 rounded-xl px-3 bg-white">
-                        <span className="text-sm font-bold text-gray-500 mr-1.5">Rp</span>
-                        <input type="text" inputMode="numeric" required value={newPrice} onChange={(e) => setNewPrice(formatThousands(e.target.value))} placeholder="12.280.000" className="w-full py-2.5 text-sm font-bold text-gray-900 outline-none" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Lokasi Kecamatan</label>
-                      <select value={newDistrict} onChange={(e) => setNewDistrict(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm bg-white text-gray-900">
-                        {BATAM_DISTRICTS.filter((d) => d !== "Semua Batam").map((d) => <option key={d} value={d}>{d}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-xs font-bold text-gray-700">Deskripsi Iklan</label>
-                        <span className={`text-[11px] font-semibold ${newDesc.length >= 570 ? "text-red-500" : "text-gray-400"}`}>{newDesc.length}/600</span>
-                      </div>
-                      <textarea rows={4} required maxLength={600} value={newDesc} onChange={(e) => setNewDesc(e.target.value.slice(0, 600))} placeholder="Jelaskan kondisi barang, fasilitas kost, status surat FTZ/SHM, dll..." className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" />
-                    </div>
-                    <button type="submit" disabled={isUploading} className="w-full py-3.5 rounded-xl bg-[#FF5722] text-white font-bold text-sm shadow">Tayangkan Iklan Sekarang</button>
-                  </form>
-                )}
-              </div>
-            )}
-
+                <div className="flex gap-2 px-3 mt-3 overflow-x-auto">
             {activeTab === "ads" && (
               <div className="p-4 space-y-3">
                 <div className="bg-[#0194F3] text-white p-4 rounded-2xl flex justify-between items-center">
@@ -352,7 +315,7 @@ export default function BatamGoApp() {
                   <div key={ad.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
                     <div className="flex gap-3">
                       <img src={ad.image} alt={ad.title} className="w-16 h-16 rounded-lg object-cover" />
-                      <div className="flex-1"><h3 className="text-xs font-bold text-gray-800 line-clamp-1">{ad.title}</h3><div className="text-sm font-extrabold text-gray-900">{formatRupiah(ad.price)}</div><div className="text-[11px] text-gray-500 mt-1">👁️ {ad.views} Dilihat • 💬 {ad.waClicks} Klik WA</div></div>
+                      <div className="flex-1"><h3 className="text-xs font-bold text-gray-800 line-clamp-1">{ad.title}</h3><div className="text-sm font-extrabold text-gray-900">{formatRupiah(ad.price)}</div><div className="text-[11px] text-gray-500 mt-1">👁️ {ad.views} Dilihat • 💬 {ad.waClicks} Chat Masuk</div></div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-gray-100">
                       <button onClick={() => alert("Membuka QRIS Pembayaran Sundul Iklan (Rp 5.000)...")} className="py-2 rounded-lg border border-[#0194F3] text-[#0194F3] text-xs font-bold">⬆️ Sundul (Rp 5rb)</button>
@@ -374,7 +337,7 @@ export default function BatamGoApp() {
                 <div className="bg-white p-5 rounded-2xl shadow-sm text-center">
                   <div className="w-16 h-16 rounded-full bg-[#0194F3] text-white text-2xl font-bold flex items-center justify-center mx-auto mb-2">B</div>
                   <h2 className="font-bold text-gray-800">Pengguna BATAM GO</h2>
-                  <p className="text-xs text-gray-500 mb-4">{isSellerVerified ? "✔️ Penjual Terverifikasi WhatsApp" : "Belum Verifikasi WhatsApp"}</p>
+                  <p className="text-xs text-gray-500 mb-4">{isSellerVerified ? "✔️ Terverifikasi Keamanan Admin" : "Belum Verifikasi Nomor Keamanan"}</p>
                   <button onClick={() => setActiveTab("ads")} className="w-full py-2.5 rounded-xl bg-blue-50 text-[#0194F3] font-bold text-xs">Kelola Iklan & Promosi Saya</button>
                 </div>
               </div>
@@ -413,7 +376,7 @@ export default function BatamGoApp() {
               <button onClick={() => setActiveTab("home")} className={`flex flex-col items-center text-[10px] font-bold ${activeTab === "home" ? "text-[#0194F3]" : "text-gray-400"}`}><span className="text-lg">🏠</span>Beranda</button>
               <button onClick={() => { setActiveTab("nearby"); setMaxRadius(3); }} className={`flex flex-col items-center text-[10px] font-bold ${activeTab === "nearby" ? "text-[#0194F3]" : "text-gray-400"}`}><span className="text-lg">🧭</span>Nearby</button>
               <button onClick={() => setActiveTab("sell")} className="-mt-6 bg-[#FF5722] text-white w-14 h-14 rounded-full shadow-lg flex flex-col items-center justify-center border-4 border-white"><span className="text-lg leading-none">+</span><span className="text-[9px] font-extrabold">JUAL</span></button>
-                           <button onClick={() => setActiveTab("ads")} className={`flex flex-col items-center text-[10px] font-bold ${activeTab === "ads" ? "text-[#0194F3]" : "text-gray-400"}`}><span className="text-lg">📢</span>Iklan Saya</button>
+              <button onClick={() => setActiveTab("ads")} className={`flex flex-col items-center text-[10px] font-bold ${activeTab === "ads" ? "text-[#0194F3]" : "text-gray-400"}`}><span className="text-lg">📢</span>Iklan Saya</button>
               <button onClick={() => setActiveTab("account")} className={`flex flex-col items-center text-[10px] font-bold ${activeTab === "account" ? "text-[#0194F3]" : "text-gray-400"}`}><span className="text-lg">👤</span>Akun</button>
             </div>
           </div>
