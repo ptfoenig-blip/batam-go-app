@@ -306,6 +306,7 @@ export default function BatamGoApp() {
                         <option value="otomotif">Otomotif</option>
                         <option value="elektronik">Elektronik</option>
                         <option value="perkakas">Perkakas Rumah Tangga</option>
+                        <option value="lainnya">Lainnya</option>
                       </select>
                     </div>
                     <div>
