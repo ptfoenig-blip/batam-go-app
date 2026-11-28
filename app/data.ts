@@ -1,4 +1,4 @@
-export type Category = "semua" | "properti" | "otomotif" | "elektronik" | "perkakas";
+export type Category = "semua" | "properti" | "otomotif" | "elektronik" | "perkakas" | "lainnya";
 
 export interface AdItem {
   id: string;
