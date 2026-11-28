@@ -34,6 +34,7 @@ export default function BatamGoApp() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [ftzStatus, setFtzStatus] = useState("Resmi Nasional / Non-FTZ");
+  const [customTag, setCustomTag] = useState("");
   const [showLegal, setShowLegal] = useState<"terms" | "privacy" | null>(null);
   const [lastMsgTime, setLastMsgTime] = useState(0);
   const BANNED_WORDS = Array.of("judi", "slot", "gacor", "narkoba", "sabu", "ganja", "senpi", "senjata api", "ilegal", "selundupan", "palsu", "ijazah palsu", "stnk palsu", "bokep", "porno");
@@ -440,7 +441,7 @@ export default function BatamGoApp() {
                     <div className="text-lg font-black text-gray-900">{fmtRp(promoModal.price)}</div>
                     <div className="text-[10px] text-amber-700 font-semibold">Transfer sesuai nominal tepat (termasuk 3 digit kode unik) agar aktif otomatis!</div>
                   </div>
-                  <button onClick={() => { const updated = ads.map((a) => a.id === promoModal.ad.id ? { ...a, isPriority: true, badge: promoModal.type === "Sundul Iklan" ? "SUNDUL 7 HARI" : "HIGHLIGHT 30 HARI" } : a); setAds(updated); try { localStorage.setItem("batamgo_ads_v3", JSON.stringify(updated)); } catch {} setPromoModal(null); alert(`✅ Pembayaran ${fmtRp(promoModal.price)} diterima! Paket ${promoModal.type} aktif otomatis.`); }} className="w-full py-3 rounded-xl bg-[#25D366] text-white font-bold text-xs">✔️ Saya Sudah Transfer — Aktifkan Otomatis</button>
+                 <button onClick={() => { const isHl = promoModal.type === "Highlight Prioritas"; const target = ads.find((a) => a.id === promoModal.ad.id); const others = ads.filter((a) => a.id !== promoModal.ad.id); const updated = target ? Array.of({ ...target, isPriority: isHl ? true : false, distanceKm: isHl ? target.distanceKm : 0.1 }, ...others) : ads; setAds(updated); try { localStorage.setItem("batamgo_ads_v3", JSON.stringify(updated)); } catch {} setPromoModal(null); alert(`✅ Pembayaran ${fmtRp(promoModal.price)} diterima! ${isHl ? "Iklan tampil dengan lencana ⚡ PRIORITAS selama 30 hari." : "Iklan naik ke urutan teratas daftar reguler selama 7 hari (tanpa lencana highlight)."}`); }} className="w-full py-3 rounded-xl bg-[#25D366] text-white font-bold text-xs">✔️ Saya Sudah Transfer — Aktifkan Otomatis</button>
                 </div>
               </div>
             )}
