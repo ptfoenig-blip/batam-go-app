@@ -17,6 +17,12 @@ export interface AdItem {
   image: string;   images?: string[];
   views: number;
   waClicks: number;
+    condition?: "Baru" | "Bekas Mulus" | "Bekas Normal";
+  ownershipProof?: string;
+  quantity?: number;
+  moderationStatus?: "pending_review" | "approved" | "rejected" | "paused" | "archived" | "deleted";
+  availability?: "Available" | "Negotiation" | "Reserved" | "Sold" | "Expired";
+  expiresAt?: string;
 }
 
 export const INITIAL_ADS: AdItem[] = [
