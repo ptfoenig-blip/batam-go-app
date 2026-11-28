@@ -32,6 +32,12 @@ export default function BatamGoApp() {
   const [newDistrict, setNewDistrict] = useState("Batam Center");
   const [newDesc, setNewDesc] = useState("");
   const [previews, setPreviews] = useState<string[]>([]);
+  const [agreedTerms, setAgreedTerms] = useState(false);
+  const [ftzStatus, setFtzStatus] = useState("Resmi Nasional / Non-FTZ");
+  const [showLegal, setShowLegal] = useState<"terms" | "privacy" | null>(null);
+  const [lastMsgTime, setLastMsgTime] = useState(0);
+  const BANNED_WORDS = Array.of("judi", "slot", "gacor", "narkoba", "sabu", "ganja", "senpi", "senjata api", "ilegal", "selundupan", "palsu", "ijazah palsu", "stnk palsu", "bokep", "porno");
+  const COD_SPOTS = Array.of("Mega Mall Batam Center", "BCS Mall Baloi", "Kepri Mall Sukajadi", "SP Plaza Batu Aji");
 
   useEffect(() => {
     try {
@@ -73,33 +79,44 @@ export default function BatamGoApp() {
     }
     e.target.value = "";
   };
-
   const publishAd = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreedTerms) { alert("Anda wajib mencentang persetujuan Syarat & Ketentuan BATAM GO terlebih dahulu."); return; }
+    const foundBanned = BANNED_WORDS.find((w) => `${newTitle} ${newDesc}`.toLowerCase().includes(w));
+    if (foundBanned) { alert(`⚠️ Iklan ditolak otomatis karena mengandung kata terlarang ("${foundBanned}").`); return; }
     const price = Number(newPrice.replace(/\D/g, "") || "0");
     if (!newTitle.trim() || price < 1000 || !newDesc.trim()) return;
-    const imgs = previews.length ? previews : ["/kost.jpg"];
+    const imgs = previews.length ? previews : Array.of("/kost.jpg");
+    const isFtzCat = newCategory === "otomotif" || newCategory === "elektronik";
+    const badge = isFtzCat ? (ftzStatus.includes("Khusus") ? "KHUSUS FTZ BATAM" : "RESMI NON-FTZ") : "TERVERIFIKASI";
     const item: AdItem = {
       id: Date.now().toString(), title: newTitle.trim().slice(0, 70), price,
       priceUnit: newCategory === "properti" && newTitle.toLowerCase().includes("kost") ? "/ bln" : undefined,
-      category: newCategory, district: newDistrict, distanceKm: 0.5,
-      badge: newCategory === "otomotif" ? "FTZ BATAM" : "BARU",
+      category: newCategory, district: newDistrict, distanceKm: 0.5, badge,
       sellerName: "Penjual Batam", isVerified: true,
       whatsapp: waNumber ? `62${waNumber.replace(/^0/, "")}` : "6281270009999",
       description: newDesc.trim().slice(0, 600), image: imgs.at(0) || "/kost.jpg", images: imgs, views: 1, waClicks: 0,
     };
-    const next = [item, ...ads]; setAds(next);
+    const next = Array.of(item, ...ads); setAds(next);
     try { localStorage.setItem("batamgo_ads_v3", JSON.stringify(next)); } catch {}
-    setNewTitle(""); setNewPrice(""); setNewDesc(""); setPreviews([]); setActiveTab("home");
+    setNewTitle(""); setNewPrice(""); setNewDesc(""); setPreviews(Array.of()); setAgreedTerms(false); setActiveTab("home");
   };
 
   const sendMsg = (txt?: string) => {
     if (!selectedAd) return;
+    if (Date.now() - lastMsgTime < 1500) { alert("Tunggu sebentar sebelum mengirim pesan berikutnya."); return; }
     const t = (txt ?? chatInput).trim(); if (!t) return;
+    if (/https?:\/\/|www\.|\.apk|\.exe/i.test(t)) { alert("🛡️ Demi keamanan dari phishing, pengiriman tautan eksternal dilarang di dalam chat."); return; }
+    setLastMsgTime(Date.now());
     const time = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-    const next = { ...chats, [selectedAd.id]: [...(chats[selectedAd.id] || []), { sender: "buyer" as const, text: t, time }] };
+    const next = { ...chats, [selectedAd.id]: Array.of(...(chats[selectedAd.id] || Array.of()), { sender: "buyer" as const, text: t, time }) };
     setChats(next); if (!txt) setChatInput("");
     try { localStorage.setItem("batamgo_chats_v1", JSON.stringify(next)); } catch {}
+  };
+
+  const shareAd = (ad: AdItem) => {
+    const shareText = `🔥 *${ad.title}*\n💰 Harga: *${fmtRp(ad.price)}*\n📍 Lokasi: ${ad.district}, Batam\n\nCek detail & chat aman di *BATAM GO*:\nhttps://vercel.app`;
+    window.open(`https://wa.me{encodeURIComponent(shareText)}`, "_blank");
   };
 
   const photos = selectedAd ? (selectedAd.images?.length ? selectedAd.images : [selectedAd.image]) : [];
@@ -134,6 +151,7 @@ export default function BatamGoApp() {
             </div>
             <div className="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-200 p-3 flex gap-2.5 z-30">
               <button onClick={() => setShowReport(true)} className="px-3.5 py-3 rounded-xl border border-red-200 text-red-600 font-bold text-xs">🚩 Laporkan</button>
+              <button onClick={() => shareAd(selectedAd)} className="px-3 py-3 rounded-xl border border-blue-200 text-[#0194F3] font-bold text-xs">📤 Share</button>
               <button onClick={() => setShowChat(true)} className="flex-1 py-3 rounded-xl bg-[#0194F3] text-white font-bold text-sm shadow-sm">💬 Hubungi Penjual (Chat)</button>
             </div>
             {showChat && (
@@ -147,7 +165,8 @@ export default function BatamGoApp() {
                   <div className="px-3 pt-2 flex gap-1.5 overflow-x-auto bg-white">
                     <button type="button" onClick={() => sendMsg("Halo, apakah barang ini masih tersedia?")} className="text-[11px] bg-blue-50 text-[#0194F3] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">Masih tersedia?</button>
                     <button type="button" onClick={() => sendMsg("Bisa ketemuan / COD di daerah mana ya?")} className="text-[11px] bg-blue-50 text-[#0194F3] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">Bisa COD di mana?</button>
-                    <button type="button" onClick={() => sendMsg("Apakah harganya masih bisa nego?")} className="text-[11px] bg-blue-50 text-[#0194F3] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">Boleh nego?</button>
+                    <button type="button" onClick={() => sendMsg("Apakah harganya masih bisa nego?")} className="text-[11px] bg-blue-50 text-[#0194F3] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">Boleh nego?</button> 
+                    {COD_SPOTS.map((spot) => <button key={spot} type="button" onClick={() => sendMsg(`Bisa COD aman di ${spot}?`)} className="text-[11px] bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">📍 COD {spot}</button>)}
                   </div>
                   <div className="p-3 bg-white border-t border-gray-100 flex gap-2"><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendMsg()} placeholder="Tulis pesan ke penjual..." className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-xs text-gray-900 outline-none" /><button type="button" onClick={() => sendMsg()} className="bg-[#0194F3] text-white font-bold text-xs px-4 rounded-xl">Kirim</button></div>
                 </div>
@@ -227,12 +246,19 @@ export default function BatamGoApp() {
                       {previews.length < 4 && <input type="file" accept="image/*" multiple onChange={handleFiles} className="w-full border border-gray-300 rounded-xl p-2 text-xs bg-white text-gray-900" />}
                       {previews.length > 0 && <div className="grid grid-cols-4 gap-2 mt-2">{previews.map((s, i) => <div key={i} className="relative aspect-square"><img src={s} alt="Prev" className="w-full h-full object-cover rounded-xl border border-gray-200" /><button type="button" onClick={() => setPreviews((p) => p.filter((_, idx) => idx !== i))} className="absolute -top-1.5 -right-1.5 bg-red-600 text-white w-5 h-5 rounded-full text-[10px] font-bold shadow">✕</button></div>)}</div>}
                     </div>
-                    <div><label className="block text-xs font-bold text-gray-700 mb-1">Kategori</label><select value={newCategory} onChange={(e) => setNewCategory(e.target.value as Exclude<Category, "semua">)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm bg-white text-gray-900"><option value="properti">Properti</option><option value="otomotif">Otomotif</option><option value="elektronik">Elektronik</option><option value="perkakas">Perkakas</option><option value="lainnya">Lainnya</option></select></div>
+                    <div><label className="block text-xs font-bold text-gray-700 mb-1">Kategori</label><select value={newCategory} onChange={(e) => setNewCategory(e.target.value as Exclude<Category, "semua">)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm bg-white text-gray-900"><option value="properti">Properti</option><option value="otomotif">Otomotif</option><option value="elektronik">Elektronik</option><option value="perkakas">Perkakas</option><option value="lainnya">Lainnya</option></select></div> 
+                                     {(newCategory === "otomotif" || newCategory === "elektronik") && (
+                   <div><label className="block text-xs font-bold text-gray-700 mb-1">Status Kepabeanan FTZ Batam</label><select value={ftzStatus} onChange={(e) => setFtzStatus(e.target.value)} className="w-full border border-blue-200 rounded-xl p-2.5 text-xs font-semibold bg-blue-50 text-gray-900"><option value="Resmi Nasional / Non-FTZ">Resmi Nasional / Non-FTZ (Bisa Keluar Batam)</option><option value="Khusus Kawasan FTZ Batam">Khusus Kawasan FTZ Batam (Hanya Pakai di Batam)</option></select></div>
+                 )}
                     <div><div className="flex justify-between items-center mb-1"><label className="text-xs font-bold text-gray-700">Judul Iklan</label><span className="text-[11px] text-gray-400">{newTitle.length}/70</span></div><input type="text" required maxLength={70} value={newTitle} onChange={(e) => setNewTitle(e.target.value.slice(0, 70))} placeholder="Contoh: Kost AC Sukajadi Dekat Kepri Mall" className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
-                    <div><label className="block text-xs font-bold text-gray-700 mb-1">Harga (Rp)</label><div className="flex items-center border border-gray-300 rounded-xl px-3 bg-white"><span className="text-sm font-bold text-gray-500 mr-1.5">Rp</span><input type="text" inputMode="numeric" required value={newPrice} onChange={(e) => setNewPrice(fmtNum(e.target.value))} placeholder="12.280.000" className="w-full py-2.5 text-sm font-bold text-gray-900 outline-none" /></div></div>
+                                
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Lokasi Kecamatan</label><select value={newDistrict} onChange={(e) => setNewDistrict(e.target.value)} className="w-full border border-gray-300 rounded-xl p-2.5 text-sm bg-white text-gray-900">{BATAM_DISTRICTS.filter((d) => d !== "Semua Batam").map((d) => <option key={d} value={d}>{d}</option>)}</select></div>
                     <div><div className="flex justify-between items-center mb-1"><label className="text-xs font-bold text-gray-700">Deskripsi Iklan</label><span className="text-[11px] text-gray-400">{newDesc.length}/600</span></div><textarea rows={4} required maxLength={600} value={newDesc} onChange={(e) => setNewDesc(e.target.value.slice(0, 600))} placeholder="Jelaskan kondisi barang, fasilitas kost, status surat FTZ/SHM, dll..." className="w-full border border-gray-300 rounded-xl p-2.5 text-sm text-gray-900" /></div>
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed"><b>⚠️ Disclaimer:</b> Dengan menayangkan iklan, penjual memahami bahwa <b>BATAM GO</b> hanya bertindak sebagai media perantara dan tidak bertanggung jawab atas transaksi yang dilakukan di luar sepengetahuan admin.</div>
+                                        <label className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed cursor-pointer">
+                      <input type="checkbox" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} className="mt-0.5 accent-[#FF5722]" />
+                      <span>Saya menyatakan barang ini halal/legal sesuai hukum RI & aturan FTZ Batam, serta menyetujui <b>Syarat & Ketentuan</b> bahwa <b>BATAM GO</b> tidak bertanggung jawab atas transaksi di luar sepengetahuan admin.</span>
+                    </label>
+
                     <button type="submit" className="w-full py-3.5 rounded-xl bg-[#FF5722] text-white font-bold text-sm shadow">Tayangkan Iklan Sekarang</button>
                   </form>
                 )}
@@ -249,8 +275,43 @@ export default function BatamGoApp() {
                 ))}
               </div>
             )}
-            {activeTab === "account" && (
-              <div className="p-4"><div className="bg-white p-5 rounded-2xl shadow-sm text-center"><div className="w-16 h-16 rounded-full bg-[#0194F3] text-white text-2xl font-bold flex items-center justify-center mx-auto mb-2">B</div><h2 className="font-bold text-gray-800">Pengguna BATAM GO</h2><p className="text-xs text-gray-500 mb-4">{isVerified ? "✔️ Terverifikasi Keamanan Admin" : "Belum Verifikasi Nomor Keamanan"}</p><button onClick={() => setActiveTab("ads")} className="w-full py-2.5 rounded-xl bg-blue-50 text-[#0194F3] font-bold text-xs">Kelola Iklan & Promosi Saya</button></div></div>
+                        {activeTab === "account" && (
+              <div className="p-4 space-y-3">
+                <div className="bg-white p-5 rounded-2xl shadow-sm text-center">
+                  <div className="w-16 h-16 rounded-full bg-[#0194F3] text-white text-2xl font-bold flex items-center justify-center mx-auto mb-2">B</div>
+                  <h2 className="font-bold text-gray-800">Pengguna BATAM GO</h2>
+                  <p className="text-xs text-gray-500 mb-4">{isVerified ? "✔️ Terverifikasi Keamanan Admin" : "Belum Verifikasi Nomor Keamanan"}</p>
+                  <button onClick={() => setActiveTab("ads")} className="w-full py-2.5 rounded-xl bg-blue-50 text-[#0194F3] font-bold text-xs">Kelola Iklan & Promosi Saya</button>
+                </div>
+                <div className="bg-white p-4 rounded-2xl shadow-sm space-y-2 text-left text-xs">
+                  <div className="font-bold text-gray-800 mb-1">⚖️ Pusat Hukum & Keamanan BATAM GO</div>
+                  <button onClick={() => setShowLegal("terms")} className="w-full p-2.5 rounded-xl bg-gray-50 font-semibold text-gray-700 flex justify-between"><span>📜 Syarat, Ketentuan & Aturan FTZ Batam</span><span>›</span></button>
+                  <button onClick={() => setShowLegal("privacy")} className="w-full p-2.5 rounded-xl bg-gray-50 font-semibold text-gray-700 flex justify-between"><span>🔒 Kebijakan Privasi & Data (UU PDP)</span><span>›</span></button>
+                  <button onClick={() => window.open(`https://wa.me{encodeURIComponent("Yuk jual beli & cari kost aman di Batam lewat aplikasi BATAM GO: https://vercel.app")}`, "_blank")} className="w-full p-2.5 rounded-xl bg-emerald-50 font-bold text-emerald-700 flex justify-between"><span>📣 Ajak Teman Batam (Dapat Kuota Sundul)</span><span>›</span></button>
+                </div>
+              </div>
+            )}
+            {showLegal && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3 max-h-[80vh] overflow-y-auto">
+                  <div className="flex justify-between items-center"><h3 className="font-bold text-sm text-gray-800">{showLegal === "terms" ? "📜 Syarat, Ketentuan & Regulasi FTZ" : "🔒 Kebijakan Privasi (UU PDP)"}</h3><button onClick={() => setShowLegal(null)} className="text-gray-400 font-bold">✕</button></div>
+                  {showLegal === "terms" ? (
+                    <div className="text-xs text-gray-600 space-y-2 leading-relaxed">
+                      <p>1. <b>Peran Platform:</b> BATAM GO adalah media iklan baris lokal Kota Batam dan tidak memungut komisi transaksi antar pengguna.</p>
+                      <p>2. <b>Barang Terlarang:</b> Dilarang mengiklankan narkotika, senjata, obat ilegal, dokumen palsu, konten dewasa, serta barang selundupan yang melanggar ketentuan Kepabeanan FTZ Batam.</p>
+                      <p>3. <b>Tanggung Jawab Transaksi:</b> Kerugian akibat transaksi di luar pengawasan admin menjadi tanggung jawab penuh penjual dan pembeli. Lakukan COD di tempat ramai.</p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-600 space-y-2 leading-relaxed">
+                      <p>1. <b>Kerahasiaan Nomor WhatsApp:</b> Sesuai UU Pelindungan Data Pribadi (UU PDP), nomor WA penjual disimpan khusus untuk verifikasi keamanan Admin dan tidak dipublikasikan ke pembeli.</p>
+                      <p>2. <b>Keamanan Chat:</b> Sistem memblokir tautan eksternal berbahaya untuk melindungi pengguna dari penipuan digital.</p>
+                    </div>
+                  )}
+                  <button onClick={() => setShowLegal(null)} className="w-full py-2.5 rounded-xl bg-[#0194F3] text-white font-bold text-xs">Saya Mengerti</button>
+                </div>
+              </div>
+            )}
+
             )}
             {showFilter && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
