@@ -436,7 +436,7 @@ export default function BatamGoApp() {
                   <p className="text-xs text-gray-600">{promoModal.type === "Sundul Iklan" ? "Otomatis naik 2x sehari (08:00 & 19:30 WIB) selama 7 hari" : "Tampil permanen di baris teratas beranda selama 30 hari"}</p>
                   <div className="p-3 bg-gray-50 border-2 border-dashed border-[#0194F3] rounded-2xl mx-auto max-w-[260px] space-y-2">
                     <div className="text-[11px] font-extrabold text-[#0194F3]">QRIS RESMI — TOKO BANG PARDEDE</div>
-                    <img src="/qris.jfif" alt="QRIS Toko Bang Pardede" className="w-52 h-auto object-contain mx-auto rounded-xl bg-white p-1 border border-gray-200" />
+                    <img src="/qris.png" alt="QRIS Toko Bang Pardede" className="w-52 h-auto object-contain mx-auto rounded-xl bg-white p-1 border border-gray-200" />
                     <div className="text-lg font-black text-gray-900">{fmtRp(promoModal.price)}</div>
                     <div className="text-[10px] text-amber-700 font-semibold">Transfer sesuai nominal tepat (termasuk 3 digit kode unik) agar aktif otomatis!</div>
                   </div>
